@@ -408,8 +408,79 @@ select.input { appearance: auto; }
 .seg .s-warn[aria-pressed="true"] { background: var(--warn); border-color: var(--warn); }
 .seg .s-bad[aria-pressed="true"] { background: var(--bad); border-color: var(--bad); }
 
+/* ---------- Tag : recherche ---------- */
+.tagbox { position: relative; display: flex; align-items: center; gap: 6px; }
+.tagbox .input { flex: 1; min-width: 0; padding-left: 42px; padding-right: 44px; font-size: 17px; font-weight: 600; }
+.tagbox .input::placeholder { font-weight: 400; }
+.tagbox-ic { position: absolute; left: 12px; top: 50%; display: grid; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.tagbox-ic .ic { width: 20px; height: 20px; }
+.tagbox-clear {
+  position: absolute; right: 4px; top: 50%; display: grid; place-items: center;
+  width: 40px; height: 40px; transform: translateY(-50%);
+  border: 0; border-radius: 10px; background: none; color: var(--muted);
+}
+.tagbox-clear .ic { width: 18px; height: 18px; }
+.tagbox-cancel { display: none; flex: none; }
+.sheet-body.searching .tagbox-cancel { display: inline-flex; }
+.sheet-body.searching .tagbox .input { padding-right: 12px; }
+.sheet-body.searching > :not(.tagfield),
+.sheet-body.searching .quick,
+.sheet-body.searching .fname { display: none; }
+.quick .chip { min-height: 42px; font-weight: 600; }
+
+.tag-list, .tm-list {
+  margin: 0; padding: 0; list-style: none; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+}
+.tag-sec {
+  padding: 10px 14px 6px; background: var(--bg); color: var(--muted);
+  font: 500 11.5px/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase;
+}
+.tag-opt {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  width: 100%; min-height: 52px; padding: 14px; border: 0; border-top: 1px solid var(--line);
+  background: none; color: var(--ink); font-size: 16px; font-weight: 600; text-align: left;
+}
+li:first-child > .tag-opt { border-top: 0; }
+.tag-sec + li > .tag-opt { border-top: 0; }
+.tag-opt .t-hint { flex: none; font-size: 13px; font-weight: 400; color: var(--muted); }
+.tag-opt[aria-selected="true"] { color: var(--accent); }
+.tag-opt[aria-selected="true"]::after { content: "✓"; margin-left: auto; color: var(--accent); }
+.tag-opt.add { align-items: center; justify-content: flex-start; color: var(--accent); }
+.tag-opt:active, .tag-opt:focus-visible { background: var(--accent-soft); }
+.tag-empty { padding: 14px; color: var(--muted); font-size: 14px; }
+
+/* ---------- Quantité ---------- */
+.opt-hint { font-weight: 400; }
+.qty { display: grid; grid-template-columns: 58px 104px 58px; gap: 8px; align-items: center; }
+.qbtn {
+  height: 52px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface); color: var(--ink); font-size: 26px; font-weight: 500; line-height: 1;
+}
+.qbtn:active { background: var(--accent-soft); }
+.qty .input { height: 52px; padding: 0 6px; text-align: center; font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.qtyb { margin-left: 6px; color: var(--accent); font: 500 13px/1 var(--font-mono); white-space: nowrap; }
+
+/* ---------- Notes de zone ---------- */
+.znotes {
+  display: grid; gap: 6px; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+}
+.znotes label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.znotes label .ic { width: 18px; height: 18px; }
+.znotes textarea { min-height: 64px; resize: none; overflow-y: auto; }
+
+/* ---------- Gestion des tags ---------- */
+.tm-row { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 4px 6px 4px 14px; border-top: 1px solid var(--line); }
+.tm-list > li:first-child { border-top: 0; }
+.tm-name { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.tm-badge {
+  margin-left: 6px; padding: 2px 6px; border-radius: 6px; background: var(--accent-soft); color: var(--accent);
+  font: 500 11px/1.3 var(--font-mono); letter-spacing: .04em; text-transform: uppercase; vertical-align: 2px;
+}
+
 .preview {
-  position: relative; display: block; width: 100%; height: clamp(170px, 32vh, 380px); padding: 0;
+  position: relative; display: block; width: 100%; height: clamp(150px, 28vh, 360px); padding: 0;
   overflow: hidden; border: 0; border-radius: 12px; background: #0B0F16;
 }
 .preview img { display: block; width: 100%; height: 100%; object-fit: contain; }
@@ -478,33 +549,44 @@ select.input { appearance: auto; }
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <noscript><p style="padding:16px">Active JavaScript pour utiliser le carnet d'audit.</p></noscript>
 <script>
-/* Carnet d'audit : fonctions pures (nommage, CSV, récapitulatif, ZIP). Testées sous Node. */
+/* Carnet d'audit : fonctions pures (tags, nommage, CSV, récapitulatif, ZIP). Testées sous Node. */
 (function (root) {
   'use strict';
 
-  const CATEGORIES = [
-    ['reseau', 'Réseau'],
-    ['wifi', 'Wi-Fi'],
-    ['securite', 'Pare-feu / sécurité'],
-    ['cablage', 'Câblage / brassage'],
-    ['serveurs', 'Serveurs / stockage'],
-    ['energie', 'Énergie / onduleur'],
-    ['video', 'Vidéoprotection'],
-    ['acces', "Contrôle d'accès"],
-    ['telephonie', 'Téléphonie / IPTV'],
-    ['postes', 'Postes / PMS'],
-    ['local', 'Local technique'],
-    ['autre', 'Autre'],
-  ].map(([id, label]) => ({ id, label }));
-
-  const STATUSES = [
-    { id: 'ok', label: 'OK' },
-    { id: 'warn', label: 'À surveiller' },
-    { id: 'bad', label: 'Non conforme' },
+  /* Tags par défaut, avec des mots-clés pour la recherche (« tel » trouve aussi PABX et IPBX). */
+  const T = (name, keywords) => ({ name, keywords });
+  const DEFAULT_TAGS = [
+    T('PMS', ['logiciel hôtel', 'property management', 'réservations', 'réception']),
+    T('POS', ['caisse', 'point de vente', 'tpe', 'restaurant', 'bar']),
+    T('Caisse', ['pos', 'point de vente', 'tpe', 'encaissement']),
+    T('Micros', ['pos', 'caisse', 'restaurant', 'bar']),
+    T('Door Locks', ['serrures', 'portes', 'badges', 'cartes', 'chambres']),
+    T('IPTV', ['tv', 'télé', 'télévision', 'chaînes']),
+    T('Encodeur', ['cartes', 'clés', 'badges', 'serrures', 'door locks']),
+    T('Passport Scanner', ['scanner', 'passeport', "pièce d'identité", 'réception']),
+    T('Switch', ['commutateur', 'réseau', 'lan', 'ports']),
+    T('Core', ['switch cœur', 'cœur de réseau', 'backbone', 'réseau']),
+    T('Firewall', ['pare-feu', 'fw', 'sécurité', 'utm']),
+    T('Contrôleur', ['wifi', 'wi-fi', 'wlc', 'controller']),
+    T('PABX', ['téléphonie', 'tel', 'standard', 'autocommutateur']),
+    T('IPBX', ['téléphonie', 'tel', 'voip', 'toip', 'standard']),
+    T('Serveur', ['server', 'srv']),
+    T('Serveur VM', ['vm', 'virtualisation', 'hyperviseur', 'esxi', 'hyper-v']),
+    T('Serveur Backup', ['sauvegarde', 'backup', 'nas']),
+    T('AP indoor', ['wifi', 'wi-fi', 'borne', "point d'accès", 'access point', 'intérieur']),
+    T('AP outdoor', ['wifi', 'wi-fi', 'borne', "point d'accès", 'access point', 'extérieur']),
+    T('TV', ['télé', 'télévision', 'écran', 'iptv']),
+    T('Téléphone', ['téléphonie', 'poste', 'combiné', 'dect']),
+    T('Baie', ['rack', 'armoire', 'baie de brassage', 'local technique']),
+    T('Climatisation', ['clim', 'froid', 'température', 'ventilation']),
+    T('Workstation', ['poste de travail', 'pc', 'ordinateur']),
+    T('Pointeuse', ['badgeuse', 'pointage', 'horaires']),
+    T('Onduleur', ['ups', 'batterie', 'alimentation']),
+    T('Routeur / Box opérateur', ['routeur', 'router', 'internet', 'fai', 'wan', 'fibre', 'lien opérateur']),
+    T('Câblage / Brassage', ['câbles', 'cordons', 'jarretières', 'panneau de brassage', 'patch']),
+    T('Imprimante', ['printer', 'impression', 'copieur', 'multifonction']),
   ];
 
-  const catLabel = (id) => (CATEGORIES.find((c) => c.id === id) || {}).label || '';
-  const statusLabel = (id) => (STATUSES.find((s) => s.id === id) || {}).label || '';
   const pad = (n, w) => String(n).padStart(w, '0');
 
   function esc(s) {
@@ -513,12 +595,14 @@ select.input { appearance: auto; }
   const escNl = (s) => esc(s).replace(/\r?\n/g, '<br>');
 
   const LIG = { 'œ': 'oe', 'Œ': 'OE', 'æ': 'ae', 'Æ': 'AE', 'ß': 'ss', 'ø': 'o', 'Ø': 'O', 'đ': 'd', 'Đ': 'D', 'ł': 'l', 'Ł': 'L' };
+  const unaccent = (s) => String(s == null ? '' : s).replace(/[œŒæÆßøØđĐłŁ]/g, (ch) => LIG[ch]).normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+  /* Forme de comparaison : minuscules, sans accents ni ponctuation. */
+  const normTag = (s) => unaccent(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
   /* Nom de fichier ASCII lisible : accents retirés, casse conservée, tirets. */
   function slugify(input, max = 60) {
-    let s = String(input == null ? '' : input).replace(/[œŒæÆßøØđĐłŁ]/g, (ch) => LIG[ch]);
-    s = s.normalize('NFD').replace(/[̀-ͯ]/g, '');
-    s = s.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    let s = unaccent(input).replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     if (s.length > max) {
       let cut = s.slice(0, max);
       const i = cut.lastIndexOf('-');
@@ -526,6 +610,49 @@ select.input { appearance: auto; }
       s = cut.replace(/-+$/, '');
     }
     return s;
+  }
+
+  /* Utilisation de chaque tag : nombre de photos et date de dernière utilisation. */
+  function tagUsage(photos) {
+    const u = {};
+    for (const p of photos) {
+      if (!p.label) continue;
+      const e = u[p.label] || (u[p.label] = { count: 0, last: 0 });
+      e.count++;
+      e.last = Math.max(e.last, p.updatedAt || p.createdAt || 0);
+    }
+    return u;
+  }
+
+  /* Recherche de tags par début de mot, sur le nom puis sur les mots-clés.
+     Score : 0 nom exact, 1 nom qui commence par la saisie, 2 mots du nom, 3 via un mot-clé (avec indice). */
+  function searchTags(tags, query, usage = {}) {
+    const q = normTag(query);
+    const toks = q ? q.split(' ') : [];
+    const out = [];
+    for (const t of tags) {
+      const n = normTag(t.name);
+      const words = n.split(' ');
+      const kws = (t.keywords || []).map(normTag);
+      const kwWords = kws.map((k) => k.split(' '));
+      let score;
+      let hint = '';
+      if (!toks.length) score = 4;
+      else if (n === q) score = 0;
+      else if (n.startsWith(q)) score = 1;
+      else if (toks.every((tok) => words.some((w) => w.startsWith(tok)))) score = 2;
+      else {
+        const ok = toks.every((tok) => words.some((w) => w.startsWith(tok)) || kwWords.some((ws) => ws.some((w) => w.startsWith(tok))));
+        if (!ok) continue;
+        score = 3;
+        const i = kws.findIndex((k, j) => k.startsWith(q) || toks.some((tok) => kwWords[j].some((w) => w.startsWith(tok))));
+        if (i >= 0) hint = t.keywords[i];
+      }
+      const u = usage[t.name] || { count: 0, last: 0 };
+      out.push({ tag: t, score, hint, count: u.count, last: u.last });
+    }
+    out.sort((a, b) => a.score - b.score || b.count - a.count || b.last - a.last || a.tag.name.localeCompare(b.tag.name, 'fr', { sensitivity: 'base' }));
+    return out;
   }
 
   function extFor(type) {
@@ -551,6 +678,8 @@ select.input { appearance: auto; }
     return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
   }
 
+  const hasQty = (p) => typeof p.qty === 'number' && p.qty > 0;
+
   /* Plan d'export : un dossier par zone (dans l'ordre des zones), photos triées par numéro. */
   function buildExportPlan(project, zones, photos) {
     const root = `${project.date || 'sans-date'}_${slugify(project.hotel, 48) || 'Audit'}`;
@@ -558,7 +687,7 @@ select.input { appearance: auto; }
     const known = new Set(zs.map((z) => z.id));
     const groups = zs.map((z) => ({ zone: z, photos: photos.filter((p) => p.zoneId === z.id) }));
     const orphans = photos.filter((p) => !known.has(p.zoneId));
-    if (orphans.length) groups.push({ zone: { id: '', name: 'Sans zone' }, photos: orphans });
+    if (orphans.length) groups.push({ zone: { id: '', name: 'Sans zone', notes: '' }, photos: orphans });
 
     const plan = { root, zones: [], items: [] };
     const used = new Set();
@@ -568,20 +697,12 @@ select.input { appearance: auto; }
         .slice()
         .sort((a, b) => (a.num || 0) - (b.num || 0) || (a.createdAt || 0) - (b.createdAt || 0))
         .map((p) => {
-          const base = `${pad(p.num || 0, 3)}_${slugify(p.label, 60) || 'sans-libelle'}`;
+          const base = `${pad(p.num || 0, 3)}_${slugify(p.label, 60) || 'sans-tag'}`;
           const ext = extFor(p.type);
           let file = `${base}.${ext}`;
           for (let k = 2; used.has(`${folder}/${file}`); k++) file = `${base}-${k}.${ext}`;
           used.add(`${folder}/${file}`);
-          const item = {
-            photo: p,
-            zoneName: g.zone.name,
-            zoneIndex: i + 1,
-            folder,
-            file,
-            rel: `${folder}/${file}`,
-            path: `${root}/${folder}/${file}`,
-          };
+          const item = { photo: p, zoneName: g.zone.name, zoneIndex: i + 1, folder, file, rel: `${folder}/${file}`, path: `${root}/${folder}/${file}` };
           plan.items.push(item);
           return item;
         });
@@ -590,15 +711,14 @@ select.input { appearance: auto; }
     return plan;
   }
 
-  const HEAD = ['N°', 'Zone', 'Libellé', 'Catégorie', 'Statut', 'Note', 'Fichier', 'Date et heure'];
+  const HEAD = ['N°', 'Zone', 'Tag', 'Quantité', 'Note', 'Fichier', 'Date et heure'];
 
   function rowsFor(plan) {
     return plan.items.map((it) => [
       'P' + pad(it.photo.num || 0, 3),
       it.zoneName,
       it.photo.label || '',
-      catLabel(it.photo.category),
-      statusLabel(it.photo.status),
+      hasQty(it.photo) ? it.photo.qty : '',
       it.photo.note || '',
       it.rel,
       fmtDateTime(it.photo.createdAt),
@@ -610,11 +730,10 @@ select.input { appearance: auto; }
     if (/^[=+\-@\t\r]/.test(s)) s = ' ' + s; // évite qu'Excel lise la cellule comme une formule
     return /[;"\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   }
+  const toCsv = (rows) => '﻿' + rows.map((r) => r.map(csvCell).join(';')).join('\r\n') + '\r\n';
 
   /* CSV pour Excel en français : BOM UTF-8, séparateur point-virgule, fins de ligne CRLF. */
-  function buildCsv(plan) {
-    return '﻿' + [HEAD, ...rowsFor(plan)].map((r) => r.map(csvCell).join(';')).join('\r\n') + '\r\n';
-  }
+  const buildCsv = (plan) => toCsv([HEAD, ...rowsFor(plan)]);
 
   /* Tableau à coller dans Excel ou Word (tabulations, une ligne par photo). */
   function buildTsv(plan) {
@@ -622,8 +741,30 @@ select.input { appearance: auto; }
     return [HEAD, ...rowsFor(plan)].map((r) => r.map(clean).join('\t')).join('\n');
   }
 
+  /* Inventaire : nombre de photos et quantité totale par tag. */
+  function inventory(plan) {
+    const map = new Map();
+    for (const it of plan.items) {
+      const name = it.photo.label || '';
+      if (!name) continue;
+      const key = normTag(name);
+      const e = map.get(key) || { name, photos: 0, qty: 0, counted: false };
+      e.photos++;
+      if (hasQty(it.photo)) { e.qty += it.photo.qty; e.counted = true; }
+      map.set(key, e);
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+  }
+  const buildInventoryCsv = (plan) =>
+    toCsv([['Tag', 'Photos', 'Quantité totale'], ...inventory(plan).map((e) => [e.name, e.photos, e.counted ? e.qty : ''])]);
+
+  function buildZoneNotesTxt(zone, project) {
+    const text = String(zone.notes || '').trim().replace(/\r?\n/g, '\r\n');
+    return `﻿${project.hotel} · ${zone.name}\r\n\r\n${text}\r\n`;
+  }
+
   const RECAP_CSS = `
-:root{--ink:#131B2B;--muted:#586378;--line:#D6DCE5;--accent:#1F49C7;--ok:#1E7F4E;--warn:#A9640F;--bad:#BE2F24}
+:root{--ink:#131B2B;--muted:#586378;--line:#D6DCE5;--accent:#1F49C7;--warn:#9C5B0B}
 *{box-sizing:border-box}
 body{margin:0;background:#fff;color:var(--ink);font:15px/1.5 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 main{max-width:1040px;margin:0 auto;padding:32px 24px 48px}
@@ -635,24 +776,22 @@ h1{margin:0;font-size:30px;line-height:1.15;text-wrap:balance}
 .stat{border:1px solid var(--line);border-radius:10px;padding:10px 14px;min-width:120px}
 .stat b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
 .stat span{font-size:13px;color:var(--muted)}
-.stat.bad b{color:var(--bad)}.stat.warn b{color:var(--warn)}
+.stat.warn b{color:var(--warn)}
 h2{display:flex;align-items:baseline;gap:10px;margin:34px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--ink);font-size:19px;text-wrap:balance}
 h2 .code{font:600 13px ui-monospace,Menlo,Consolas,monospace;color:var(--accent)}
 h2 small{margin-left:auto;font-size:13px;font-weight:400;color:var(--muted)}
-.notes{white-space:normal;max-width:70ch}
-table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{padding:8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+.notes{max-width:75ch;margin:0 0 14px;padding:10px 14px;border-left:3px solid var(--line);color:#2B3445}
+table{width:100%;max-width:640px;border-collapse:collapse;font-size:14px}
+th,td{padding:7px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
 th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
-td a{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--accent);text-decoration:none}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
 figure{margin:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
 figure img{display:block;width:100%;height:280px;object-fit:contain;background:#F1F3F6}
 figcaption{display:grid;gap:6px;padding:10px 12px 12px}
 .cap{font-weight:600}
 .num{margin-right:6px;font:600 12px ui-monospace,Menlo,Consolas,monospace;color:var(--accent)}
-.tags{display:flex;flex-wrap:wrap;gap:6px}
-.tag{padding:2px 8px;border-radius:99px;background:#EEF1F5;color:var(--muted);font-size:12px;font-weight:600}
-.tag.s-ok{background:#E1F3E9;color:var(--ok)}.tag.s-warn{background:#FBEFD9;color:var(--warn)}.tag.s-bad{background:#FBE3E0;color:var(--bad)}
+.qty{margin-left:6px;font:600 13px ui-monospace,Menlo,Consolas,monospace;color:var(--accent)}
 figcaption p{margin:0;font-size:14px}
 .file{font:12px ui-monospace,Menlo,Consolas,monospace;color:var(--muted);overflow-wrap:anywhere}
 .missing{color:var(--warn);font-style:italic}
@@ -664,49 +803,33 @@ footer{margin-top:40px;font-size:12px;color:var(--muted)}
   /* Récapitulatif HTML autonome, placé à la racine du ZIP : il affiche les photos par chemin relatif. */
   function buildRecapHtml(plan, project, generatedAt) {
     const items = plan.items;
-    const count = (st) => items.filter((it) => it.photo.status === st).length;
-    const todo = items.filter((it) => !it.photo.label).length;
+    const untagged = items.filter((it) => !it.photo.label).length;
     const meta = [project.city, fmtIsoDate(project.date), project.auditor ? `Auditeur : ${project.auditor}` : '']
-      .filter(Boolean)
-      .map(esc)
-      .join(' · ');
+      .filter(Boolean).map(esc).join(' · ');
     const pnum = (it) => 'P' + pad(it.photo.num || 0, 3);
-    const anchor = (it) => 'p' + pad(it.photo.num || 0, 3);
-    const attention = items
-      .filter((it) => it.photo.status === 'bad' || it.photo.status === 'warn')
-      .sort((a, b) => (a.photo.status === b.photo.status ? 0 : a.photo.status === 'bad' ? -1 : 1) || (a.photo.num || 0) - (b.photo.num || 0));
-
     const stat = (n, label, cls = '') => `<div class="stat ${cls}"><b>${n}</b><span>${label}</span></div>`;
-    const tagStatus = (st) => (st ? `<span class="tag s-${st}">${esc(statusLabel(st))}</span>` : '');
+    const inv = inventory(plan);
+    const usedZones = plan.zones.filter((z) => z.items.length || (z.zone.notes || '').trim());
 
-    const attentionHtml = attention.length
-      ? `<section><h2>Points d'attention <small>${attention.length}</small></h2><table>
-<thead><tr><th>N°</th><th>Zone</th><th>Libellé</th><th>Statut</th><th>Note</th></tr></thead><tbody>
-${attention
-  .map(
-    (it) => `<tr><td><a href="#${anchor(it)}">${pnum(it)}</a></td><td>${esc(it.zoneName)}</td><td>${it.photo.label ? esc(it.photo.label) : '<span class="missing">Sans libellé</span>'}</td><td>${tagStatus(it.photo.status)}</td><td>${escNl(it.photo.note)}</td></tr>`
-  )
-  .join('\n')}
+    const invHtml = inv.length
+      ? `<section><h2>Inventaire <small>${inv.length} tag${inv.length > 1 ? 's' : ''}</small></h2><table>
+<thead><tr><th>Tag</th><th class="n">Photos</th><th class="n">Quantité</th></tr></thead><tbody>
+${inv.map((e) => `<tr><td>${esc(e.name)}</td><td class="n">${e.photos}</td><td class="n">${e.counted ? e.qty : '–'}</td></tr>`).join('\n')}
 </tbody></table></section>`
       : '';
 
-    const zonesHtml = plan.zones
-      .filter((z) => z.items.length)
-      .map(
-        (z) => `<section><h2><span class="code">${pad(z.index, 2)}</span>${esc(z.zone.name)}<small>${z.items.length} photo${z.items.length > 1 ? 's' : ''}</small></h2><div class="grid">
-${z.items
-  .map((it) => {
+    const zonesHtml = usedZones
+      .map((z) => `<section><h2><span class="code">${pad(z.index, 2)}</span>${esc(z.zone.name)}<small>${z.items.length} photo${z.items.length > 1 ? 's' : ''}</small></h2>
+${(z.zone.notes || '').trim() ? `<p class="notes">${escNl(z.zone.notes.trim())}</p>` : ''}
+${z.items.length ? `<div class="grid">
+${z.items.map((it) => {
     const p = it.photo;
-    const cat = catLabel(p.category);
-    return `<figure id="${anchor(it)}"><a href="${esc(it.rel)}"><img src="${esc(it.rel)}" alt="${esc(p.label || 'Photo ' + pnum(it))}" loading="lazy"></a><figcaption>
-<div class="cap"><span class="num">${pnum(it)}</span>${p.label ? esc(p.label) : '<span class="missing">Sans libellé</span>'}</div>
-${cat || p.status ? `<div class="tags">${cat ? `<span class="tag">${esc(cat)}</span>` : ''}${tagStatus(p.status)}</div>` : ''}
+    return `<figure id="p${pad(p.num || 0, 3)}"><a href="${esc(it.rel)}"><img src="${esc(it.rel)}" alt="${esc(p.label || 'Photo ' + pnum(it))}" loading="lazy"></a><figcaption>
+<div class="cap"><span class="num">${pnum(it)}</span>${p.label ? esc(p.label) : '<span class="missing">Sans tag</span>'}${hasQty(p) ? `<span class="qty">×${p.qty}</span>` : ''}</div>
 ${p.note ? `<p>${escNl(p.note)}</p>` : ''}
 <div class="file">${esc(it.file)} · ${esc(fmtDateTime(p.createdAt))}</div></figcaption></figure>`;
-  })
-  .join('\n')}
-</div></section>`
-      )
+  }).join('\n')}
+</div>` : ''}</section>`)
       .join('\n');
 
     return `<!DOCTYPE html>
@@ -715,9 +838,9 @@ ${p.note ? `<p>${escNl(p.note)}</p>` : ''}
 <body><main>
 <header><p class="eyebrow">Carnet d'audit IT · récapitulatif photos</p><h1>${esc(project.hotel)}</h1>${meta ? `<p class="meta">${meta}</p>` : ''}
 <p class="tip">Astuce : imprime cette page en PDF pour l'annexe photo du rapport.</p></header>
-<div class="stats">${stat(items.length, 'photos')}${stat(plan.zones.filter((z) => z.items.length).length, 'zones')}${stat(count('bad'), 'non conformes', 'bad')}${stat(count('warn'), 'à surveiller', 'warn')}${todo ? stat(todo, 'sans libellé') : ''}</div>
+<div class="stats">${stat(items.length, 'photos')}${stat(plan.zones.length, 'zones')}${stat(inv.length, 'tags différents')}${untagged ? stat(untagged, 'sans tag', 'warn') : ''}</div>
 ${project.notes ? `<section><h2>Notes générales</h2><p class="notes">${escNl(project.notes)}</p></section>` : ''}
-${attentionHtml}
+${invHtml}
 ${zonesHtml}
 <footer>Généré le ${esc(fmtDateTime(generatedAt))} avec Carnet d'audit.</footer>
 </main></body></html>
@@ -814,8 +937,8 @@ ${zonesHtml}
   }
 
   const api = {
-    CATEGORIES, STATUSES, catLabel, statusLabel, pad, esc, slugify, extFor, sortZones,
-    fmtDateTime, fmtIsoDate, buildExportPlan, buildCsv, buildTsv, buildRecapHtml, crc32, makeZip,
+    DEFAULT_TAGS, pad, esc, normTag, slugify, tagUsage, searchTags, extFor, sortZones, fmtDateTime, fmtIsoDate,
+    buildExportPlan, buildCsv, buildTsv, inventory, buildInventoryCsv, buildZoneNotesTxt, buildRecapHtml, crc32, makeZip,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CarnetCore = api;
@@ -833,14 +956,14 @@ ${zonesHtml}
   const esc = C.esc;
   const pad = C.pad;
 
-  const VERSION = '0.1';
+  const VERSION = '0.2';
   const QUALITY = {
     opt: { max: 1600, q: 0.82, label: 'Optimisée', hint: '1600 px, environ 0,3 Mo par photo' },
     std: { max: 2560, q: 0.85, label: 'Standard', hint: '2560 px, environ 0,7 Mo par photo' },
     orig: { max: 0, q: 0, label: 'Originale', hint: 'fichier de l’appareil, 2 à 6 Mo par photo' },
   };
   const ZONE_PRESETS = ['Local technique', 'Baie de brassage', 'Réception', 'Back-office', 'Bureau de direction', 'Chambres', 'Couloirs / étages', 'Salles de séminaire', 'Restaurant / bar', 'Spa / fitness', 'Parking', 'Extérieur'];
-  const LABEL_PRESETS = ['Baie de brassage', 'Switch', 'Routeur / box opérateur', 'Pare-feu', 'Borne Wi-Fi', 'Onduleur', 'Serveur', 'NVR / enregistreur', 'Caméra', 'Panneau de brassage', 'Étiquetage', 'Prise RJ45', 'Poste de réception', 'Climatisation du local', 'Porte du local'];
+  const DEFAULT_QUICK = ['Baie', 'Switch', 'Firewall', 'AP indoor', 'Onduleur', 'Serveur'];
   const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
   const ICONS = {
@@ -863,6 +986,9 @@ ${zonesHtml}
     zoom: '<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5M11 8v6M8 11h6"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
     folder: '<path d="M3 7a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7z"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+    tag: '<path d="M3 12.5V4a1 1 0 0 1 1-1h8.5L21 11.5 12.5 20z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+    note: '<path d="M5 4h14v11l-5 5H5z"/><path d="M14 20v-5h5M8 9h8M8 13h4"/>',
   };
   const icon = (n) => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[n] || ''}</svg>`;
 
@@ -967,6 +1093,7 @@ ${zonesHtml}
     durable: false,
     inFrame: (() => { try { return window.self !== window.top; } catch (e) { return true; } })(),
     settings: { auditor: '', quality: 'std', hintDismissed: false, seeded: false, installDismissed: false },
+    tagMeta: { custom: [], hidden: [] },
     nav: [{ name: 'home' }],
     useHistory: false,
     organize: false,
@@ -1054,7 +1181,7 @@ ${zonesHtml}
     project.updatedAt = now;
     const photo = {
       id: uid(), projectId: project.id, zoneId: zone.id, num: project.seq,
-      label: '', note: '', category: '', status: '',
+      label: '', qty: null, note: '',
       createdAt: now, w: img.w, h: img.h, size: fullBuf.byteLength, type: img.type,
     };
     await S.store.batch([
@@ -1170,24 +1297,20 @@ ${zonesHtml}
       for (let k = 0; k < 3; k++) { g.fillStyle = '#3b3f46'; g.beginPath(); g.arc(x + w * (0.3 + k * 0.2), y + h * 0.29, w * 0.04, 0, Math.PI * 2); g.fill(); }
       for (let k = 0; k < 12; k++) { g.fillStyle = '#121316'; g.fillRect(x + w * 0.15, y + h * (0.5 + k * 0.035), w * 0.7, h * 0.012); }
     },
-    camera(g, W, H, R) {
+    reception(g, W, H, R) {
       g.fillStyle = vgrad(g, H, '#e8e4dc', '#cfc9be'); g.fillRect(0, 0, W, H);
-      g.fillStyle = '#f4f2ee'; g.fillRect(0, 0, W, H * 0.08);
-      const cx = W * 0.5, cy = H * 0.1;
-      g.fillStyle = '#fafafa'; g.beginPath(); g.ellipse(cx, cy, W * 0.13, H * 0.035, 0, 0, Math.PI * 2); g.fill();
-      const dg = g.createRadialGradient(cx - W * 0.03, cy + H * 0.05, W * 0.01, cx, cy + H * 0.06, W * 0.11);
-      dg.addColorStop(0, '#5b6472'); dg.addColorStop(1, '#14171c');
-      g.fillStyle = dg; g.beginPath(); g.ellipse(cx, cy + H * 0.02, W * 0.1, H * 0.13, 0, 0, Math.PI); g.fill();
-      g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.ellipse(cx - W * 0.04, cy + H * 0.07, W * 0.02, H * 0.03, -0.5, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#8a5a3c'; g.beginPath(); g.moveTo(W * 0.1, H); g.lineTo(W * 0.2, H * 0.68); g.lineTo(W * 0.8, H * 0.68); g.lineTo(W * 0.9, H); g.closePath(); g.fill();
-      g.fillStyle = '#a06c49'; g.fillRect(W * 0.2, H * 0.66, W * 0.6, H * 0.03);
-      g.fillStyle = '#1d2026'; rr(g, W * 0.42, H * 0.42, W * 0.22, H * 0.2, W * 0.008); g.fill();
-      g.fillStyle = '#4c7bd9'; g.fillRect(W * 0.43, H * 0.435, W * 0.2, H * 0.17);
-      for (let k = 0; k < 6; k++) { g.fillStyle = 'rgba(255,255,255,.75)'; g.fillRect(W * 0.445, H * (0.455 + k * 0.024), W * (0.08 + R() * 0.09), H * 0.01); }
-      g.fillStyle = '#1d2026'; g.fillRect(W * 0.52, H * 0.62, W * 0.02, H * 0.05);
-      g.strokeStyle = 'rgba(190,47,36,.6)'; g.setLineDash([W * 0.012, W * 0.01]); g.lineWidth = W * 0.003;
-      g.beginPath(); g.moveTo(cx, cy + H * 0.15); g.lineTo(W * 0.34, H * 0.66); g.moveTo(cx, cy + H * 0.15); g.lineTo(W * 0.72, H * 0.66); g.stroke();
-      g.setLineDash([]);
+      g.fillStyle = '#8a5a3c'; g.beginPath(); g.moveTo(W * 0.04, H); g.lineTo(W * 0.12, H * 0.66); g.lineTo(W * 0.88, H * 0.66); g.lineTo(W * 0.96, H); g.closePath(); g.fill();
+      g.fillStyle = '#a06c49'; g.fillRect(W * 0.12, H * 0.64, W * 0.76, H * 0.03);
+      [0.2, 0.52].forEach((x) => {
+        g.fillStyle = '#1d2026'; rr(g, W * x, H * 0.3, W * 0.26, H * 0.24, W * 0.008); g.fill();
+        g.fillStyle = '#4c7bd9'; g.fillRect(W * (x + 0.01), H * 0.315, W * 0.24, H * 0.205);
+        g.fillStyle = '#2f5cb8'; g.fillRect(W * (x + 0.01), H * 0.315, W * 0.24, H * 0.03);
+        for (let k = 0; k < 6; k++) { g.fillStyle = 'rgba(255,255,255,.78)'; g.fillRect(W * (x + 0.025), H * (0.365 + k * 0.024), W * (0.08 + R() * 0.12), H * 0.01); }
+        g.fillStyle = '#1d2026'; g.fillRect(W * (x + 0.12), H * 0.54, W * 0.02, H * 0.1);
+      });
+      g.fillStyle = '#f3f3f1'; rr(g, W * 0.81, H * 0.56, W * 0.08, H * 0.08, W * 0.006); g.fill();
+      g.fillStyle = '#2a2d33'; g.fillRect(W * 0.825, H * 0.575, W * 0.05, H * 0.008);
+      g.fillStyle = '#4ade80'; g.beginPath(); g.arc(W * 0.85, H * 0.615, H * 0.006, 0, Math.PI * 2); g.fill();
     },
     cables(g, W, H, R) {
       g.fillStyle = vgrad(g, H, '#2b2724', '#171513'); g.fillRect(0, 0, W, H);
@@ -1243,14 +1366,19 @@ ${zonesHtml}
       notes: 'Audit d’exemple pour découvrir l’app. Supprime-le avec le crayon en haut à droite quand tu n’en as plus besoin.',
       seq: 0, example: true, createdAt: now, updatedAt: now,
     };
-    const zones = ['Local technique RDC', 'Réception', 'Étage 2, couloir'].map((name, i) => ({ id: uid(), projectId: pid, name, order: i, createdAt: now + i }));
+    const zoneDefs = [
+      ['Local technique RDC', 'Accès par badge, clé chez le gardien de nuit.\nPas de climatisation : 28 °C mesurés dans le local.'],
+      ['Réception', '2 postes de réception et 1 encodeur de cartes.\nInterlocuteur : responsable de réception.'],
+      ['Étage 2, couloir', ''],
+    ];
+    const zones = zoneDefs.map(([name, notes], i) => ({ id: uid(), projectId: pid, name, notes, order: i, createdAt: now + i }));
     const shots = [
-      { z: 0, kind: 'rack', label: 'Baie de brassage principale', category: 'cablage', status: 'warn', note: 'Panneau 2 non étiqueté, cordons trop longs. Porte de baie non verrouillée.' },
-      { z: 0, kind: 'switch', label: 'Switch cœur, ports 1 à 24', category: 'reseau', status: 'ok', note: 'Modèle et version du firmware à relever sur l’interface d’administration.' },
-      { z: 0, kind: 'ups', label: 'Onduleur baie RDC', category: 'energie', status: 'ok', note: 'Autonomie affichée : 18 min. Date du dernier test batterie inconnue.' },
-      { z: 1, kind: 'camera', label: 'Caméra hall d’entrée', category: 'video', status: 'bad', note: 'L’écran du poste de réception est dans le champ de la caméra (données clients visibles). À réorienter.' },
-      { z: 1, kind: 'cables', label: '', category: '', status: '', note: '' },
-      { z: 2, kind: 'ap', label: 'Borne Wi-Fi couloir', category: 'wifi', status: 'ok', note: 'SSID clients et SSID personnel diffusés. Signal correct en bout de couloir.' },
+      { z: 0, kind: 'rack', label: 'Baie', qty: 1, note: 'Panneau 2 non étiqueté, cordons trop longs. Porte de baie non verrouillée.' },
+      { z: 0, kind: 'switch', label: 'Switch', qty: 2, note: 'Modèle et version du firmware à relever sur l’interface d’administration.' },
+      { z: 0, kind: 'ups', label: 'Onduleur', qty: 1, note: 'Autonomie affichée : 18 min. Date du dernier test batterie inconnue.' },
+      { z: 1, kind: 'reception', label: 'PMS', qty: 2, note: 'Sessions PMS ouvertes sans verrouillage automatique de l’écran.' },
+      { z: 1, kind: 'cables', label: '', qty: null, note: '' },
+      { z: 2, kind: 'ap', label: 'AP indoor', qty: 1, note: 'SSID clients et SSID personnel diffusés. Signal correct en bout de couloir.' },
     ];
     const ops = [{ store: 'projects', type: 'put', value: project }, ...zones.map((z) => ({ store: 'zones', type: 'put', value: z }))];
     for (let i = 0; i < shots.length; i++) {
@@ -1266,12 +1394,87 @@ ${zonesHtml}
       ops.push(
         { store: 'files', type: 'put', value: { id, buf: fullBuf, type: 'image/jpeg', crc: C.crc32(new Uint8Array(fullBuf)) } },
         { store: 'thumbs', type: 'put', value: { id, buf: thumbBuf, type: 'image/jpeg' } },
-        { store: 'photos', type: 'put', value: { id, projectId: pid, zoneId: zones[s.z].id, num: i + 1, label: s.label, note: s.note, category: s.category, status: s.status, createdAt: ts, w: 1600, h: 1200, size: fullBuf.byteLength, type: 'image/jpeg' } }
+        { store: 'photos', type: 'put', value: { id, projectId: pid, zoneId: zones[s.z].id, num: i + 1, label: s.label, qty: s.qty, note: s.note, createdAt: ts, w: 1600, h: 1200, size: fullBuf.byteLength, type: 'image/jpeg' } }
       );
     }
     project.seq = shots.length;
     await S.store.batch(ops);
     return pid;
+  }
+
+  /* ---------- Tags ---------- */
+  async function loadTags() {
+    try {
+      const m = await S.store.get('meta', 'tags');
+      const v = (m && m.value) || {};
+      S.tagMeta = { custom: Array.isArray(v.custom) ? v.custom : [], hidden: Array.isArray(v.hidden) ? v.hidden : [] };
+    } catch (e) { S.tagMeta = { custom: [], hidden: [] }; }
+  }
+  async function saveTags() {
+    try { await S.store.put('meta', { key: 'tags', value: { custom: [...S.tagMeta.custom], hidden: [...S.tagMeta.hidden] } }); }
+    catch (e) { toast('Enregistrement des tags impossible'); }
+  }
+  const byName = (a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
+  function allTags() {
+    const hidden = new Set(S.tagMeta.hidden.map(C.normTag));
+    const list = C.DEFAULT_TAGS.filter((t) => !hidden.has(C.normTag(t.name))).map((t) => ({ ...t, custom: false }));
+    const seen = new Set(list.map((t) => C.normTag(t.name)));
+    for (const name of S.tagMeta.custom) {
+      const k = C.normTag(name);
+      if (k && !seen.has(k)) { seen.add(k); list.push({ name, keywords: [], custom: true }); }
+    }
+    return list;
+  }
+  const isDefaultTag = (name) => C.DEFAULT_TAGS.some((t) => C.normTag(t.name) === C.normTag(name));
+  async function addCustomTag(raw) {
+    const name = String(raw || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+    const k = C.normTag(name);
+    if (!k) return '';
+    const existing = allTags().find((t) => C.normTag(t.name) === k);
+    if (existing) return existing.name;
+    const def = C.DEFAULT_TAGS.find((t) => C.normTag(t.name) === k);
+    if (def) {
+      S.tagMeta.hidden = S.tagMeta.hidden.filter((h) => C.normTag(h) !== k);
+      await saveTags();
+      return def.name;
+    }
+    S.tagMeta.custom.push(name);
+    await saveTags();
+    return name;
+  }
+  async function removeTag(name) {
+    const k = C.normTag(name);
+    if (isDefaultTag(name)) { if (!S.tagMeta.hidden.some((h) => C.normTag(h) === k)) S.tagMeta.hidden.push(name); }
+    else S.tagMeta.custom = S.tagMeta.custom.filter((c) => C.normTag(c) !== k);
+    await saveTags();
+  }
+  /* Tags rapides : ceux de l'audit en cours d'abord, puis les autres audits, puis une sélection par défaut. */
+  function quickTags(projectPhotos, allPhotos, excludeId) {
+    const out = [];
+    const push = (n) => { if (n && out.length < 6 && !out.some((x) => C.normTag(x) === C.normTag(n))) out.push(n); };
+    const recent = (arr) => arr.filter((p) => p.label && p.id !== excludeId).sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt));
+    recent(projectPhotos).forEach((p) => push(p.label));
+    recent(allPhotos).forEach((p) => push(p.label));
+    const known = new Set(allTags().map((t) => C.normTag(t.name)));
+    DEFAULT_QUICK.filter((n) => known.has(C.normTag(n))).forEach(push);
+    return out;
+  }
+
+  /* ---------- Notes de zone (enregistrement automatique) ---------- */
+  const zoneNotes = { timer: 0, zoneId: null, value: '' };
+  async function flushZoneNotes() {
+    clearTimeout(zoneNotes.timer);
+    if (!zoneNotes.zoneId) return;
+    const { zoneId, value } = zoneNotes;
+    zoneNotes.zoneId = null;
+    try {
+      const z = await S.store.get('zones', zoneId);
+      if (z && (z.notes || '') !== value) { z.notes = value; await S.store.put('zones', z); }
+    } catch (e) { toast('Notes non enregistrées : ' + errMsg(e)); }
+  }
+  function autoGrow(t) {
+    t.style.height = 'auto';
+    t.style.height = `${Math.min(t.scrollHeight + 2, Math.round(window.innerHeight * 0.45))}px`;
   }
 
   /* ---------- Version installable (PWA) ---------- */
@@ -1336,24 +1539,25 @@ ${zonesHtml}
 
   /* ---------- Rendu ---------- */
   function summarize(photos) {
-    const s = { photos: photos.length, todo: 0, ok: 0, warn: 0, bad: 0, bytes: 0 };
+    const s = { photos: photos.length, todo: 0, bytes: 0 };
     for (const p of photos) {
       if (!p.label) s.todo++;
-      if (p.status === 'ok' || p.status === 'warn' || p.status === 'bad') s[p.status]++;
       s.bytes += p.size || 0;
     }
     return s;
   }
-  const pill = (text, cls = '') => `<span class="pill ${cls}">${cls && cls !== 'todo' ? '<span class="dot"></span>' : ''}${text}</span>`;
-  function statPills(s, zones, compact = false) {
+  const pill = (text, cls = '') => `<span class="pill ${cls}">${text}</span>`;
+  function statPills(s, zones) {
     const out = [];
     if (zones !== undefined) out.push(pill(plural(zones, 'zone', 'zones')));
     out.push(pill(plural(s.photos, 'photo', 'photos')));
-    if (s.todo) out.push(pill(`${s.todo} à annoter`, 'todo'));
-    if (s.bad) out.push(pill(plural(s.bad, 'non conforme', 'non conformes'), 'bad'));
-    if (s.warn) out.push(pill(`${s.warn} à surveiller`, 'warn'));
-    if (s.ok && !compact) out.push(pill(`${s.ok} OK`, 'ok'));
+    if (s.todo) out.push(pill(`${s.todo} à taguer`, 'todo'));
     return `<div class="pills">${out.join('')}</div>`;
+  }
+  const qtyBadge = (p) => (typeof p.qty === 'number' && p.qty > 0 ? `<span class="qtyb">×${p.qty}</span>` : '');
+  function excerpt(text, max = 70) {
+    const t = String(text || '').replace(/\s+/g, ' ').trim();
+    return t.length > max ? `${t.slice(0, max - 1).replace(/\s+\S*$/, '')}…` : t;
   }
   function topbar({ back: hasBack = false, title, sub = '', right = '' }) {
     const left = hasBack
@@ -1363,6 +1567,7 @@ ${zonesHtml}
   }
 
   async function render(keepScroll = false) {
+    await flushZoneNotes();
     const token = ++S.renderToken;
     const y = window.scrollY;
     const r = current();
@@ -1380,6 +1585,7 @@ ${zonesHtml}
     $('#topbar').innerHTML = out.top;
     $('#view').innerHTML = out.html;
     $('#actionbar').innerHTML = out.actions;
+    $$('textarea[data-autogrow]', $('#view')).forEach(autoGrow);
     if (keepScroll) window.scrollTo(0, y);
     await hydrateThumbs($('#view'));
   }
@@ -1400,8 +1606,8 @@ ${zonesHtml}
       html += `<section class="hint" aria-label="Mode d’emploi"><ol>
         <li><span><strong>Un audit par hôtel</strong>, même si tu en enchaînes plusieurs dans la journée.</span></li>
         <li><span><strong>Une zone par endroit visité</strong> : local technique, réception, étages…</span></li>
-        <li><span><strong>Une photo, un libellé</strong> : le fichier est renommé automatiquement.</span></li>
-      </ol><p>L’export ZIP range tout par zone avec le tableau des notes, prêt pour le rapport.</p>
+        <li><span><strong>Une photo, un tag</strong> : tape quelques lettres (« sw », « tel », « clim ») et choisis. Le fichier est renommé automatiquement.</span></li>
+      </ol><p>L’export ZIP range tout par zone, avec le tableau des notes et l’inventaire, prêt pour le rapport.</p>
       <button type="button" class="btn sm" data-act="dismiss-hint">Compris</button></section>`;
     }
     html += `<div class="sec-h"><h2>Audits · ${projects.length}</h2></div>`;
@@ -1414,7 +1620,7 @@ ${zonesHtml}
           <span class="adate" aria-hidden="true"><span class="d">${d ? d.getDate() : '–'}</span><span class="m">${d ? MONTHS[d.getMonth()] : ''}</span><span class="y">${d ? d.getFullYear() : ''}</span></span>
           <span class="abody"><span class="aname">${esc(p.hotel)}${p.example ? '<span class="tag-ex">Exemple</span>' : ''}</span>
           ${p.city || p.auditor ? `<span class="asub">${esc([p.city, p.auditor].filter(Boolean).join(' · '))}</span>` : ''}
-          ${statPills(summarize(ps), nz, true)}</span></button>`;
+          ${statPills(summarize(ps), nz)}</span></button>`;
       }).join('')}</div>`;
     } else {
       html += `<div class="empty">${icon('folder')}<strong>Aucun audit pour l’instant</strong><span>Crée un audit pour le premier hôtel de la journée.</span></div>`;
@@ -1450,7 +1656,7 @@ ${zonesHtml}
           : `<label class="zcam" for="in-camera" data-capture="${z.id}" role="button" tabindex="0" aria-label="Photographier : ${esc(z.name)}">${icon('camera')}</label>`;
         return `<div class="zrow${S.flashZone === z.id ? ' flash' : ''}"><button type="button" class="zmain" data-act="open-zone" data-id="${z.id}">
           <span class="zcode mono">Z${pad(i + 1, 2)}</span>
-          <span class="ztext"><span class="zname">${esc(z.name)}</span><span class="zcount">${plural(ps.length, 'photo', 'photos')}${todo ? ` · <span class="t-warn">${todo} à annoter</span>` : ''}</span></span>
+          <span class="ztext"><span class="zname">${esc(z.name)}</span><span class="zcount">${plural(ps.length, 'photo', 'photos')}${todo ? ` · <span class="t-warn">${todo} à taguer</span>` : ''}${(z.notes || '').trim() ? ' · notes' : ''}</span></span>
           <span class="zstrip">${strip}</span></button>${side}</div>`;
       }).join('')}</div>`;
     } else {
@@ -1476,16 +1682,17 @@ ${zonesHtml}
       right: `<button type="button" class="icon-btn" data-act="edit-zone" aria-label="Renommer ou supprimer la zone">${icon('edit')}</button>`,
     });
     let html = statPills(summarize(ps));
+    html += `<section class="znotes">
+      <label for="zn-notes">${icon('note')} Notes de la zone</label>
+      <textarea id="zn-notes" class="input" rows="2" data-zone="${z.id}" data-autogrow placeholder="Notes en vrac : accès au local, interlocuteur, remarques…">${esc(z.notes || '')}</textarea>
+      <span class="small">Enregistrement automatique</span></section>`;
     if (ps.length) {
-      html += `<div class="pgrid">${ps.map((ph) => {
-        const meta = [ph.category ? esc(C.catLabel(ph.category)) : '', ph.status ? `<span class="st s-${ph.status}">${esc(C.statusLabel(ph.status))}</span>` : ''].filter(Boolean).join('');
-        return `<button type="button" class="ptile" data-act="open-photo" data-id="${ph.id}">
-          <span class="pimg"><img data-thumb="${ph.id}" alt=""><span class="pnum">P${pad(ph.num, 3)}</span>${ph.label ? '' : '<span class="todo">À annoter</span>'}${ph.status ? `<span class="sbar s-${ph.status}"></span>` : ''}</span>
-          <span class="pcap${ph.label ? '' : ' missing'}">${ph.label ? esc(ph.label) : 'Sans libellé'}</span>
-          ${meta ? `<span class="pmeta">${meta}</span>` : ''}</button>`;
-      }).join('')}</div>`;
+      html += `<div class="pgrid">${ps.map((ph) => `<button type="button" class="ptile" data-act="open-photo" data-id="${ph.id}">
+          <span class="pimg"><img data-thumb="${ph.id}" alt=""><span class="pnum">P${pad(ph.num, 3)}</span>${ph.label ? '' : '<span class="todo">À taguer</span>'}</span>
+          <span class="pcap${ph.label ? '' : ' missing'}">${ph.label ? esc(ph.label) : 'Sans tag'}${qtyBadge(ph)}</span>
+          ${ph.note ? `<span class="pmeta">${esc(excerpt(ph.note))}</span>` : ''}</button>`).join('')}</div>`;
     } else {
-      html += `<div class="empty">${icon('camera')}<strong>Aucune photo dans cette zone</strong><span>Appuie sur « Prendre une photo », puis donne-lui un libellé.</span></div>`;
+      html += `<div class="empty">${icon('camera')}<strong>Aucune photo dans cette zone</strong><span>Appuie sur « Prendre une photo », puis choisis son tag.</span></div>`;
     }
     const actions = `<label class="btn" for="in-gallery" data-capture="${id}" role="button" tabindex="0">${icon('image')} Importer</label>
       <label class="btn primary big grow" for="in-camera" data-capture="${id}" role="button" tabindex="0">${icon('camera')} Prendre une photo</label>`;
@@ -1559,45 +1766,49 @@ ${zonesHtml}
     $('button', v).focus();
   }
 
-  /* Annotation d'une photo : tout est enregistré automatiquement. */
+  /* Fiche d'une photo : tag (recherche), quantité, note, zone. Tout est enregistré automatiquement. */
   async function openPhotoSheet(photoId) {
     const ph = await S.store.get('photos', photoId);
     if (!ph) return;
-    const [zonesRaw, all, fileRec] = await Promise.all([
+    const [zonesRaw, projectPhotos, everyPhoto, fileRec] = await Promise.all([
       S.store.byIndex('zones', 'projectId', ph.projectId),
       S.store.byIndex('photos', 'projectId', ph.projectId),
+      S.store.all('photos'),
       S.store.get('files', photoId),
     ]);
     const zones = C.sortZones(zonesRaw);
     const zoneName = (id) => (zones.find((z) => z.id === id) || {}).name || '';
     const fullUrl = fileRec && fileRec.buf ? URL.createObjectURL(new Blob([fileRec.buf], { type: fileRec.type || 'image/jpeg' })) : '';
-    const st = { category: ph.category || '', status: ph.status || '', zoneId: ph.zoneId };
-    const recent = [];
-    all.filter((p) => p.id !== ph.id && p.label).sort((a, b) => b.createdAt - a.createdAt).forEach((p) => {
-      if (recent.length < 6 && !recent.some((r) => r.toLowerCase() === p.label.toLowerCase())) recent.push(p.label);
-    });
-    const presets = LABEL_PRESETS.filter((l) => !recent.some((r) => r.toLowerCase() === l.toLowerCase()));
-    const chip = (l, cls = '') => `<button type="button" class="chip ${cls}" data-label="${esc(l)}">${esc(l)}</button>`;
+    const usage = C.tagUsage(everyPhoto);
+    const quick = quickTags(projectPhotos, everyPhoto, ph.id);
+    const st = { label: ph.label || '', qty: typeof ph.qty === 'number' ? ph.qty : null, zoneId: ph.zoneId };
+    const PLACEHOLDER = 'Rechercher : switch, tel, clim…';
 
     const body = `
       <button type="button" class="preview" data-local="zoom" aria-label="Agrandir la photo">${fullUrl ? `<img src="${fullUrl}" alt="">` : '<span class="preview-missing">Image introuvable</span>'}<span class="preview-zoom">${icon('zoom')}</span></button>
-      <div class="field">
-        <label for="f-label">Libellé</label>
-        <input id="f-label" class="input" type="text" value="${esc(ph.label)}" placeholder="Ex. Switch cœur baie RDC" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" maxlength="120">
-        <div class="chips scroll" role="group" aria-label="Libellés suggérés">${recent.map((l) => chip(l, 'recent')).join('')}${presets.map((l) => chip(l)).join('')}</div>
+      <div class="field tagfield">
+        <label for="f-tag">Tag</label>
+        <div class="tagbox">
+          <span class="tagbox-ic">${icon('search')}</span>
+          <input id="f-tag" class="input" type="text" value="${esc(st.label)}" placeholder="${PLACEHOLDER}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="f-tag-list">
+          <button type="button" class="tagbox-clear" data-local="clear" aria-label="Retirer le tag"${st.label ? '' : ' hidden'}>${icon('close')}</button>
+          <button type="button" class="btn link tagbox-cancel" data-local="cancel">Annuler</button>
+        </div>
+        <div class="chips scroll quick" role="group" aria-label="Tags rapides">${quick.map((n) => `<button type="button" class="chip" data-quick="${esc(n)}" aria-pressed="false">${esc(n)}</button>`).join('')}</div>
+        <ul class="tag-list" id="f-tag-list" role="listbox" aria-label="Tags" hidden></ul>
         <p class="fname mono" id="f-fname"></p>
       </div>
       <div class="field">
-        <span class="flabel" id="lb-status">Statut</span>
-        <div class="seg" role="group" aria-labelledby="lb-status">${[{ id: '', label: 'Aucun' }, ...C.STATUSES].map((s) => `<button type="button" class="s-${s.id || 'none'}" data-status="${s.id}" aria-pressed="${st.status === s.id}">${s.label}</button>`).join('')}</div>
-      </div>
-      <div class="field">
-        <span class="flabel" id="lb-cat">Catégorie</span>
-        <div class="chips" role="group" aria-labelledby="lb-cat">${C.CATEGORIES.map((c) => `<button type="button" class="chip" data-cat="${c.id}" aria-pressed="${st.category === c.id}">${esc(c.label)}</button>`).join('')}</div>
+        <label for="f-qty">Quantité <span class="opt-hint">· facultatif</span></label>
+        <div class="qty">
+          <button type="button" class="qbtn" data-qty="-1" aria-label="Diminuer la quantité">−</button>
+          <input id="f-qty" class="input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" enterkeyhint="done" placeholder="–" value="${st.qty == null ? '' : st.qty}">
+          <button type="button" class="qbtn" data-qty="1" aria-label="Augmenter la quantité">+</button>
+        </div>
       </div>
       <div class="field">
         <label for="f-note">Note</label>
-        <textarea id="f-note" class="input" rows="4" placeholder="Constat, modèle, numéro de série, recommandation…">${esc(ph.note)}</textarea>
+        <textarea id="f-note" class="input" rows="3" placeholder="Constat, modèle, numéro de série, recommandation…">${esc(ph.note)}</textarea>
       </div>
       <div class="field">
         <label for="f-zone">Zone</label>
@@ -1608,21 +1819,28 @@ ${zonesHtml}
       <button type="button" class="btn primary" data-sheet-dismiss>${icon('check')} Terminé</button>`;
     const headExtra = `<button type="button" class="icon-btn danger" data-local="delete" aria-label="Supprimer la photo">${icon('trash')}</button>`;
 
-    let timer = 0, dirty = false, deleted = false;
+    let timer = 0, dirty = false, deleted = false, searching = false, typed = false;
     const sheet = openSheet({
       title: `<span class="mono h-num">P${pad(ph.num, 3)}</span><span class="h-zone">${esc(zoneName(st.zoneId))}</span>`,
       body, foot, headExtra, full: true,
       onClose: async () => {
-        await flush();
+        await commit();
         if (fullUrl) URL.revokeObjectURL(fullUrl);
         if (S.activePhoto && S.activePhoto.id === ph.id) S.activePhoto = null;
         if (!deleted) render(true);
       },
     });
     const el = sheet.el;
-    const inLabel = $('#f-label', el), inNote = $('#f-note', el), inZone = $('#f-zone', el), fname = $('#f-fname', el), next = $('#f-next', el);
-    const updFname = () => { fname.textContent = `Nom du fichier : ${pad(ph.num, 3)}_${C.slugify(inLabel.value, 60) || 'sans-libelle'}.${C.extFor(ph.type)}`; };
-    updFname();
+    const sb = $('.sheet-body', el);
+    const field = $('.tagfield', el);
+    const inTag = $('#f-tag', el), list = $('#f-tag-list', el), clearBtn = $('.tagbox-clear', el);
+    const inQty = $('#f-qty', el), inNote = $('#f-note', el), inZone = $('#f-zone', el), fname = $('#f-fname', el), next = $('#f-next', el);
+
+    const updFname = () => { fname.textContent = `Nom du fichier : ${pad(ph.num, 3)}_${C.slugify(st.label, 60) || 'sans-tag'}.${C.extFor(ph.type)}`; };
+    const updQuick = () => {
+      $$('[data-quick]', el).forEach((c) => c.setAttribute('aria-pressed', String(!!st.label && C.normTag(c.dataset.quick) === C.normTag(st.label))));
+      clearBtn.hidden = !st.label || searching;
+    };
     const schedule = () => { dirty = true; clearTimeout(timer); timer = setTimeout(flush, 400); };
     async function flush() {
       clearTimeout(timer);
@@ -1631,30 +1849,141 @@ ${zonesHtml}
       try {
         const cur = await S.store.get('photos', ph.id);
         if (!cur) return;
-        Object.assign(cur, { label: inLabel.value.trim(), note: inNote.value.trim(), category: st.category, status: st.status, zoneId: st.zoneId, updatedAt: Date.now() });
+        Object.assign(cur, { label: st.label, qty: st.qty, note: inNote.value.trim(), zoneId: st.zoneId, updatedAt: Date.now() });
+        delete cur.category;
+        delete cur.status;
         await S.store.put('photos', cur);
       } catch (e) { toast('Enregistrement impossible : ' + errMsg(e)); }
     }
-    S.activePhoto = { id: ph.id, flush };
+    async function commit() { if (searching) closeSearch(true); await flush(); }
+    S.activePhoto = { id: ph.id, flush: commit };
 
-    inLabel.addEventListener('input', () => { updFname(); schedule(); });
-    inLabel.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); inLabel.blur(); } });
+    function setLabel(name) {
+      st.label = String(name || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+      inTag.value = st.label;
+      updFname(); updQuick(); schedule();
+    }
+    const option = (name, hint, selected) => `<li role="none"><button type="button" class="tag-opt" role="option" data-tag="${esc(name)}" aria-selected="${selected}"><span class="t-name">${esc(name)}</span>${hint ? `<span class="t-hint">${esc(hint)}</span>` : ''}</button></li>`;
+    function renderList(q) {
+      const tags = allTags();
+      const cur = C.normTag(st.label);
+      const query = q.trim();
+      let html = '';
+      if (!query) {
+        if (quick.length) html += `<li class="tag-sec" role="presentation">Suggestions</li>${quick.map((n) => option(n, '', C.normTag(n) === cur)).join('')}`;
+        html += `<li class="tag-sec" role="presentation">Tous les tags · ${tags.length}</li>${[...tags].sort(byName).map((t) => option(t.name, '', C.normTag(t.name) === cur)).join('')}`;
+      } else {
+        const res = C.searchTags(tags, query, usage).slice(0, 12);
+        if (!res.length) html += '<li class="tag-empty" role="presentation">Aucun tag ne correspond.</li>';
+        html += res.map((r) => option(r.tag.name, r.hint, C.normTag(r.tag.name) === cur)).join('');
+        if (!tags.some((t) => C.normTag(t.name) === C.normTag(query))) {
+          html += `<li role="none"><button type="button" class="tag-opt add" role="option" data-add="${esc(query)}">${icon('plus')}<span>Ajouter le tag « ${esc(query)} »</span></button></li>`;
+        }
+      }
+      list.innerHTML = html;
+    }
+    function openSearch() {
+      if (searching) return;
+      searching = true;
+      typed = false;
+      sb.classList.add('searching');
+      inTag.value = '';
+      inTag.placeholder = st.label ? `${st.label} · tape pour changer` : PLACEHOLDER;
+      inTag.setAttribute('aria-expanded', 'true');
+      renderList('');
+      list.hidden = false;
+      updQuick();
+      sb.scrollTop = 0;
+    }
+    function closeSearch(keepTyped) {
+      if (!searching) return;
+      searching = false;
+      sb.classList.remove('searching');
+      list.hidden = true;
+      inTag.setAttribute('aria-expanded', 'false');
+      inTag.placeholder = PLACEHOLDER;
+      const txt = inTag.value.trim();
+      if (keepTyped && typed && txt) {
+        const hit = allTags().find((t) => C.normTag(t.name) === C.normTag(txt));
+        setLabel(hit ? hit.name : txt);
+      } else {
+        inTag.value = st.label;
+        updQuick();
+      }
+    }
+    async function pick(btn) {
+      const isAdd = btn.hasAttribute('data-add');
+      const name = isAdd ? await addCustomTag(btn.dataset.add) : btn.dataset.tag;
+      if (!name) return;
+      closeSearch(false);
+      setLabel(name);
+      inTag.blur();
+      if (isAdd) toast(`Tag « ${name} » ajouté à la liste`);
+    }
+
+    updFname();
+    updQuick();
+    inTag.addEventListener('focus', openSearch);
+    inTag.addEventListener('input', () => { typed = true; renderList(inTag.value); });
+    inTag.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const first = $('[data-tag], [data-add]', list);
+        if (typed && inTag.value.trim() && first) pick(first);
+        else { closeSearch(false); inTag.blur(); }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        closeSearch(false);
+        inTag.blur();
+      }
+    });
+    inTag.addEventListener('blur', () => {
+      setTimeout(() => { if (searching && !field.contains(document.activeElement)) closeSearch(true); }, 0);
+    });
+    // Garder le focus dans la recherche quand on touche une suggestion ou « Annuler ».
+    list.addEventListener('mousedown', (e) => e.preventDefault());
+    $('.tagbox-cancel', el).addEventListener('mousedown', (e) => e.preventDefault());
+    list.addEventListener('click', (e) => { const b = e.target.closest('[data-tag], [data-add]'); if (b) pick(b); });
+
+    const setQty = (v) => {
+      st.qty = v == null || isNaN(v) ? null : Math.max(0, Math.min(9999, Math.round(v)));
+      inQty.value = st.qty == null ? '' : String(st.qty);
+      schedule();
+    };
+    inQty.addEventListener('input', () => {
+      const digits = inQty.value.replace(/\D/g, '').slice(0, 4);
+      if (digits !== inQty.value) inQty.value = digits;
+      st.qty = digits ? parseInt(digits, 10) : null;
+      schedule();
+    });
+    inQty.addEventListener('focus', () => { try { inQty.select(); } catch (e) { /* ignoré */ } });
+    inQty.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); inQty.blur(); } });
     inNote.addEventListener('input', schedule);
-    inZone.addEventListener('change', () => { st.zoneId = inZone.value; next.dataset.capture = st.zoneId; $('.h-zone', el).textContent = zoneName(st.zoneId); schedule(); });
+    inZone.addEventListener('change', () => {
+      st.zoneId = inZone.value;
+      next.dataset.capture = st.zoneId;
+      $('.h-zone', el).textContent = zoneName(st.zoneId);
+      schedule();
+    });
+
     el.addEventListener('click', async (e) => {
-      const b = e.target.closest('[data-label],[data-status],[data-cat],[data-local]');
+      const b = e.target.closest('[data-quick], [data-qty], [data-local]');
       if (!b) return;
-      if (b.hasAttribute('data-label')) { inLabel.value = b.dataset.label; updFname(); schedule(); }
-      else if (b.hasAttribute('data-status')) {
-        st.status = b.dataset.status;
-        $$('[data-status]', el).forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.status === st.status)));
-        schedule();
-      } else if (b.hasAttribute('data-cat')) {
-        st.category = st.category === b.dataset.cat ? '' : b.dataset.cat;
-        $$('[data-cat]', el).forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.cat === st.category)));
-        schedule();
-      } else if (b.dataset.local === 'zoom') { if (fullUrl) openViewer(fullUrl); }
-      else if (b.dataset.local === 'delete') {
+      if (b.hasAttribute('data-quick')) {
+        setLabel(C.normTag(b.dataset.quick) === C.normTag(st.label) ? '' : b.dataset.quick);
+      } else if (b.hasAttribute('data-qty')) {
+        const d = Number(b.dataset.qty);
+        if (st.qty == null) setQty(d > 0 ? 1 : null);
+        else setQty(st.qty + d <= 0 ? null : st.qty + d);
+      } else if (b.dataset.local === 'clear') {
+        setLabel('');
+      } else if (b.dataset.local === 'cancel') {
+        closeSearch(false);
+        inTag.blur();
+      } else if (b.dataset.local === 'zoom') {
+        if (fullUrl) openViewer(fullUrl);
+      } else if (b.dataset.local === 'delete') {
         const ok = await confirmBox(`Supprimer la photo P${pad(ph.num, 3)} ? Elle sera effacée de cet appareil.`, { ok: 'Supprimer' });
         if (!ok) return;
         deleted = true;
@@ -1793,8 +2122,8 @@ ${zonesHtml}
 
   /* ---------- Export ---------- */
   function buildTree(plan) {
-    const rows = plan.zones.map((z) => [`${z.folder}/`, plural(z.items.length, 'photo', 'photos')]);
-    rows.push(['notes.csv', 'tableau'], ['recapitulatif.html', 'à imprimer']);
+    const rows = plan.zones.map((z) => [`${z.folder}/`, `${plural(z.items.length, 'photo', 'photos')}${(z.zone.notes || '').trim() ? ' + notes' : ''}`]);
+    rows.push(['notes.csv', 'tableau'], ['inventaire.csv', 'tags et quantités'], ['recapitulatif.html', 'à imprimer']);
     const w = Math.max(...rows.map((r) => r[0].length));
     return [plan.root + '/', ...rows.map((r, i) => `${i === rows.length - 1 ? '└─' : '├─'} ${r[0].padEnd(w)}  ${r[1]}`)].join('\n');
   }
@@ -1805,7 +2134,10 @@ ${zonesHtml}
     const now = new Date();
     const enc = new TextEncoder();
     const entries = [{ name: plan.root + '/', date: now }];
-    plan.zones.forEach((z) => entries.push({ name: `${plan.root}/${z.folder}/`, date: now }));
+    plan.zones.forEach((z) => {
+      entries.push({ name: `${plan.root}/${z.folder}/`, date: now });
+      if ((z.zone.notes || '').trim()) entries.push({ name: `${plan.root}/${z.folder}/notes-zone.txt`, data: enc.encode(C.buildZoneNotesTxt(z.zone, p)), date: now });
+    });
     let i = 0;
     for (const it of plan.items) {
       const rec = await S.store.get('files', it.photo.id);
@@ -1818,6 +2150,7 @@ ${zonesHtml}
       if (i % 8 === 0) await tick();
     }
     entries.push({ name: `${plan.root}/notes.csv`, data: enc.encode(C.buildCsv(plan)), date: now });
+    entries.push({ name: `${plan.root}/inventaire.csv`, data: enc.encode(C.buildInventoryCsv(plan)), date: now });
     entries.push({ name: `${plan.root}/recapitulatif.html`, data: enc.encode(C.buildRecapHtml(plan, p, now.getTime())), date: now });
     return { blob: C.makeZip(entries), plan };
   }
@@ -1837,9 +2170,9 @@ ${zonesHtml}
     const s = summarize(photos);
     const filename = `Audit_${plan.root}.zip`;
     const body = `
-      <p class="lead">Un dossier par zone, les photos renommées avec leur numéro et leur libellé, le tableau des notes et un récapitulatif imprimable.</p>
+      <p class="lead">Un dossier par zone avec ses photos renommées (numéro et tag) et ses notes, le tableau des photos, l’inventaire et un récapitulatif imprimable.</p>
       <pre class="tree" aria-label="Contenu du ZIP">${esc(buildTree(plan))}</pre>
-      ${s.todo ? `<div class="banner">${icon('info')}<span>${plural(s.todo, 'photo n’a pas de libellé', 'photos n’ont pas de libellé')} : ${s.todo > 1 ? 'elles seront nommées' : 'elle sera nommée'} « sans-libelle ».</span></div>` : ''}
+      ${s.todo ? `<div class="banner">${icon('info')}<span>${plural(s.todo, 'photo n’a pas de tag', 'photos n’ont pas de tag')} : ${s.todo > 1 ? 'elles seront nommées' : 'elle sera nommée'} « sans-tag ».</span></div>` : ''}
       <div id="ex-state" class="ex-state" aria-live="polite"></div>
       <button type="button" class="btn ghost" data-local="copy">${icon('copy')} Copier le tableau des notes</button>`;
     const foot = `<button type="button" class="btn primary big" data-local="build">${icon('download')} Préparer le ZIP · ${fmtSize(s.bytes + 30000)}</button>`;
@@ -1938,6 +2271,10 @@ ${zonesHtml}
         ${!persisted && canPersist() && !S.inFrame ? '<button type="button" class="btn" data-local="persist">Demander la protection des données</button>' : ''}
         ${envNote}
       </div>
+      <div class="field"><span class="flabel">Tags</span>
+        <p class="kv"><span>Tags disponibles</span><strong id="st-tags">${tagCountLabel()}</strong></p>
+        <button type="button" class="btn" data-local="tags">${icon('tag')} Gérer les tags</button>
+      </div>
       <button type="button" class="btn" data-local="seed">Recréer l’audit d’exemple</button>
       <p class="small">Carnet d’audit · version ${VERSION} · les photos restent sur cet appareil</p>`;
     const sheet = openSheet({ title: 'Réglages', body, foot: '<button type="button" class="btn primary" data-sheet-dismiss>Fermer</button>' });
@@ -1947,7 +2284,9 @@ ${zonesHtml}
     el.addEventListener('click', async (e) => {
       const b = e.target.closest('[data-local]');
       if (!b) return;
-      if (b.dataset.local === 'persist') {
+      if (b.dataset.local === 'tags') {
+        openTagManager(() => { const t = $('#st-tags', el); if (t) t.textContent = tagCountLabel(); });
+      } else if (b.dataset.local === 'persist') {
         let ok = false;
         try { ok = await navigator.storage.persist(); } catch (err) { ok = false; }
         $('#st-persist', el).textContent = ok ? 'activée' : 'refusée par le navigateur';
@@ -1957,6 +2296,51 @@ ${zonesHtml}
         try { await seedExample(); await sheet.close(); S.nav = [{ name: 'home' }]; render(); toast('Audit d’exemple recréé'); }
         catch (err) { b.disabled = false; toast('Impossible de recréer l’exemple : ' + errMsg(err)); }
       }
+    });
+  }
+
+  function tagCountLabel() {
+    const n = allTags().length, added = S.tagMeta.custom.length;
+    return `${n}${added ? ` dont ${plural(added, 'ajouté', 'ajoutés')}` : ''}`;
+  }
+
+  /* Liste des tags : rechercher, ajouter, retirer. Retirer un tag ne touche pas aux photos déjà taguées. */
+  function openTagManager(onDone) {
+    const body = `
+      <div class="field"><label for="tm-q">Rechercher ou ajouter un tag</label>
+        <div class="tagbox"><span class="tagbox-ic">${icon('search')}</span><input id="tm-q" class="input" type="text" placeholder="Ex. Borne de recharge" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done"></div>
+      </div>
+      <ul class="tm-list" id="tm-list"></ul>
+      <p class="small">Retirer un tag ne modifie pas les photos déjà taguées. Les tags ajoutés restent sur ce téléphone.</p>`;
+    const foot = '<button type="button" class="btn" data-local="reset">Rétablir les tags par défaut</button><button type="button" class="btn primary" data-sheet-dismiss>Fermer</button>';
+    const sheet = openSheet({ title: 'Tags', body, foot, full: true, onClose: () => { if (onDone) onDone(); } });
+    const el = sheet.el;
+    const q = $('#tm-q', el), list = $('#tm-list', el);
+    function draw() {
+      const v = q.value.trim();
+      const tags = allTags();
+      const rows = v ? C.searchTags(tags, v).map((r) => r.tag) : [...tags].sort(byName);
+      const exact = v && tags.some((t) => C.normTag(t.name) === C.normTag(v));
+      list.innerHTML = (v && !exact ? `<li><button type="button" class="tag-opt add" data-add="${esc(v)}">${icon('plus')}<span>Ajouter le tag « ${esc(v)} »</span></button></li>` : '')
+        + (rows.length ? rows.map((t) => `<li class="tm-row"><span class="tm-name">${esc(t.name)}${t.custom ? ' <span class="tm-badge">ajouté</span>' : ''}</span><button type="button" class="icon-btn sm danger" data-del="${esc(t.name)}" aria-label="Retirer le tag ${esc(t.name)}">${icon('trash')}</button></li>`).join('')
+          : '<li class="tag-empty">Aucun tag ne correspond.</li>');
+    }
+    async function add(v) {
+      const name = await addCustomTag(v);
+      if (!name) return;
+      q.value = '';
+      draw();
+      toast(`Tag « ${name} » disponible`);
+    }
+    draw();
+    q.addEventListener('input', draw);
+    q.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); if (q.value.trim()) add(q.value); } });
+    el.addEventListener('click', async (e) => {
+      const a = e.target.closest('[data-add]');
+      if (a) { add(a.dataset.add); return; }
+      const d = e.target.closest('[data-del]');
+      if (d) { const saving = removeTag(d.dataset.del); draw(); toast(`Tag « ${d.dataset.del} » retiré`); await saving; return; }
+      if (e.target.closest('[data-local="reset"]')) { S.tagMeta.hidden = []; draw(); toast('Tags par défaut rétablis'); await saveTags(); }
     });
   }
 
@@ -2010,7 +2394,7 @@ ${zonesHtml}
     if (added.length) requestPersistOnce();
     await render(true);
     if (added.length === 1 && files.length === 1) openPhotoSheet(added[0].id);
-    else if (added.length) toast(`${plural(added.length, 'photo importée', 'photos importées')}${failed ? `, ${failed} en échec` : ''} · à annoter`);
+    else if (added.length) toast(`${plural(added.length, 'photo importée', 'photos importées')}${failed ? `, ${failed} en échec` : ''} · à taguer`);
     else if (failed) toast('Impossible de lire cette image. Essaie avec une photo JPEG.', 5000);
   }
 
@@ -2055,6 +2439,21 @@ ${zonesHtml}
       if (e.key === 'Escape' && S.sheets.length) { e.preventDefault(); S.sheets[S.sheets.length - 1].close(); return; }
       if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('label[role="button"]')) { e.preventDefault(); e.target.click(); }
     });
+    document.addEventListener('input', (e) => {
+      const t = e.target;
+      if (t.id !== 'zn-notes') return;
+      zoneNotes.zoneId = t.dataset.zone;
+      zoneNotes.value = t.value;
+      clearTimeout(zoneNotes.timer);
+      zoneNotes.timer = setTimeout(flushZoneNotes, 600);
+      autoGrow(t);
+    });
+    document.addEventListener('focusout', (e) => { if (e.target.id === 'zn-notes') flushZoneNotes(); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'hidden') return;
+      flushZoneNotes();
+      if (S.activePhoto) S.activePhoto.flush();
+    });
     $('#in-camera').addEventListener('change', (e) => onFileInput(e.target));
     $('#in-gallery').addEventListener('change', (e) => onFileInput(e.target));
   }
@@ -2076,6 +2475,7 @@ ${zonesHtml}
     try { S.store = new IdbStore(await idbOpen()); S.durable = true; }
     catch (e) { console.warn('Stockage en mémoire :', e); S.store = new MemStore(); S.durable = false; }
     await loadSettings();
+    await loadTags();
     if (!S.settings.seeded) {
       try { await seedExample(); } catch (e) { console.warn('Exemple non créé :', e); }
       S.settings.seeded = true;
