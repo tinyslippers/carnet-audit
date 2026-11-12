@@ -470,6 +470,13 @@ li:first-child > .tag-opt { border-top: 0; }
 .znotes label .ic { width: 18px; height: 18px; }
 .znotes textarea { min-height: 64px; resize: none; overflow-y: auto; }
 
+/* ---------- Import ---------- */
+.imp-head { display: flex; gap: 12px; align-items: center; }
+.imp-ic { display: grid; place-items: center; flex: none; width: 48px; height: 48px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
+.imp-head > div { display: grid; gap: 2px; min-width: 0; }
+.imp-title { font: 600 21px/1.2 var(--font-display); overflow-wrap: anywhere; }
+.imp-list { display: grid; gap: 6px; margin: 0; padding: 12px 14px 12px 32px; border-radius: 12px; background: var(--bg); font-weight: 600; }
+
 /* ---------- Gestion des tags ---------- */
 .tm-row { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 4px 6px 4px 14px; border-top: 1px solid var(--line); }
 .tm-list > li:first-child { border-top: 0; }
@@ -546,6 +553,7 @@ li:first-child > .tag-opt { border-top: 0; }
 </div>
 <input type="file" id="in-camera" class="vh" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
 <input type="file" id="in-gallery" class="vh" accept="image/*" multiple tabindex="-1" aria-hidden="true">
+<input type="file" id="in-import" class="vh" accept=".zip,application/zip,application/x-zip-compressed" tabindex="-1" aria-hidden="true">
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <noscript><p style="padding:16px">Active JavaScript pour utiliser le carnet d'audit.</p></noscript>
 <script>
@@ -763,6 +771,162 @@ li:first-child > .tag-opt { border-top: 0; }
     return `﻿${project.hotel} · ${zone.name}\r\n\r\n${text}\r\n`;
   }
 
+  function buildGeneralNotesTxt(project) {
+    const text = String(project.notes || '').trim().replace(/\r?\n/g, '\r\n');
+    return `﻿${project.hotel} · notes générales\r\n\r\n${text}\r\n`;
+  }
+
+  /* ---------- Partage : données de l'app dans le ZIP, puis fusion à l'import ---------- */
+  const qtyOf = (p) => (typeof p.qty === 'number' ? p.qty : null);
+
+  function buildAuditJson(plan, project, zones, meta = {}) {
+    return JSON.stringify({
+      format: 'carnet-audit',
+      version: 1,
+      app: meta.app || '',
+      exportedAt: meta.exportedAt || Date.now(),
+      exportedBy: meta.exportedBy || '',
+      project: {
+        id: project.id, hotel: project.hotel || '', city: project.city || '', date: project.date || '',
+        auditor: project.auditor || '', notes: project.notes || '', infoAt: project.infoAt || 0,
+        notesAt: project.notesAt || 0, createdAt: project.createdAt || 0, example: !!project.example,
+        deleted: project.deleted || {},
+      },
+      zones: zones.map((z) => ({
+        id: z.id, name: z.name, notes: z.notes || '', order: z.order || 0,
+        createdAt: z.createdAt || 0, updatedAt: z.updatedAt || 0, notesAt: z.notesAt || 0,
+      })),
+      photos: plan.items.map((it) => {
+        const p = it.photo;
+        return {
+          id: p.id, zoneId: p.zoneId, num: p.num || 0, label: p.label || '', qty: qtyOf(p), note: p.note || '',
+          createdAt: p.createdAt || 0, updatedAt: p.updatedAt || p.createdAt || 0,
+          w: p.w || 0, h: p.h || 0, size: p.size || 0, type: p.type || 'image/jpeg', file: it.rel,
+        };
+      }),
+    });
+  }
+
+  function isAuditJson(d) {
+    return !!(d && d.format === 'carnet-audit' && d.version >= 1 && d.project && d.project.id && Array.isArray(d.zones) && Array.isArray(d.photos));
+  }
+
+  const latest = (...v) => Math.max(0, ...v.map((x) => Number(x) || 0));
+
+  /* Fusion d'un audit reçu (inc) avec la version locale (local.project peut être null).
+     - Pour chaque élément, la modification la plus récente l'emporte (info, notes, zone, photo).
+     - Une suppression l'emporte sur les modifications plus anciennes, et se propage.
+     - La numérotation du fichier reçu fait foi ; une photo locale absente du fichier dont le numéro est déjà pris passe à la suite. */
+  function planMerge(local, inc) {
+    const lp = local.project || null;
+    const ip = inc.project;
+    const deleted = { ...((lp && lp.deleted) || {}) };
+    for (const [id, t] of Object.entries(ip.deleted || {})) deleted[id] = Math.max(deleted[id] || 0, Number(t) || 0);
+    const gone = (id, ...stamps) => deleted[id] != null && deleted[id] >= latest(...stamps);
+    const report = {
+      isNew: !lp, photosAdded: 0, photosUpdated: 0, photosDeleted: 0, renumbered: 0,
+      zonesAdded: 0, zonesUpdated: 0, zonesDeleted: 0, info: false, notes: false,
+    };
+
+    let project;
+    if (!lp) {
+      project = {
+        id: ip.id, hotel: ip.hotel || 'Audit', city: ip.city || '', date: ip.date || '', auditor: ip.auditor || '',
+        notes: ip.notes || '', infoAt: ip.infoAt || 0, notesAt: ip.notesAt || 0, createdAt: ip.createdAt || 0,
+        example: !!ip.example, deleted,
+      };
+    } else {
+      project = { ...lp, deleted };
+      if ((ip.infoAt || 0) > (lp.infoAt || 0)) {
+        Object.assign(project, { hotel: ip.hotel, city: ip.city, date: ip.date, auditor: ip.auditor, infoAt: ip.infoAt });
+        report.info = true;
+      }
+      if ((ip.notesAt || 0) > (lp.notesAt || 0)) {
+        Object.assign(project, { notes: ip.notes, notesAt: ip.notesAt });
+        report.notes = true;
+      }
+    }
+
+    const lz = new Map(local.zones.map((z) => [z.id, z]));
+    const zonesPut = [];
+    for (const z of inc.zones) {
+      if (gone(z.id, z.updatedAt, z.notesAt, z.createdAt)) continue;
+      const cur = lz.get(z.id);
+      if (!cur) {
+        zonesPut.push({ id: z.id, projectId: ip.id, name: z.name, notes: z.notes || '', order: z.order || 0, createdAt: z.createdAt || 0, updatedAt: z.updatedAt || 0, notesAt: z.notesAt || 0 });
+        report.zonesAdded++;
+        continue;
+      }
+      const m = { ...cur };
+      let changed = false;
+      if ((z.updatedAt || 0) > (cur.updatedAt || 0)) { Object.assign(m, { name: z.name, order: z.order || 0, updatedAt: z.updatedAt }); changed = true; }
+      if ((z.notesAt || 0) > (cur.notesAt || 0)) { Object.assign(m, { notes: z.notes || '', notesAt: z.notesAt }); changed = true; }
+      if (changed) { zonesPut.push(m); report.zonesUpdated++; }
+    }
+    const zonesDel = local.zones.filter((z) => gone(z.id, z.updatedAt, z.notesAt, z.createdAt)).map((z) => z.id);
+    report.zonesDeleted = zonesDel.length;
+
+    const lph = new Map(local.photos.map((p) => [p.id, p]));
+    const incAlive = inc.photos.filter((p) => !gone(p.id, p.updatedAt, p.createdAt));
+    const photosDel = local.photos.filter((p) => gone(p.id, p.updatedAt, p.createdAt)).map((p) => p.id);
+    report.photosDeleted = photosDel.length;
+    const delSet = new Set(photosDel);
+    const incIds = new Set(incAlive.map((p) => p.id));
+
+    const finalNum = new Map();
+    const used = new Set();
+    for (const p of incAlive) { finalNum.set(p.id, p.num); used.add(p.num); }
+    const localOnly = local.photos
+      .filter((p) => !delSet.has(p.id) && !incIds.has(p.id))
+      .sort((a, b) => (a.num || 0) - (b.num || 0) || (a.createdAt || 0) - (b.createdAt || 0));
+    const bump = [];
+    for (const p of localOnly) {
+      if (!p.num || used.has(p.num)) bump.push(p);
+      else { used.add(p.num); finalNum.set(p.id, p.num); }
+    }
+    let max = Math.max(0, ...used);
+    bump.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((p) => finalNum.set(p.id, ++max));
+
+    const photosPut = [];
+    for (const p of incAlive) {
+      const cur = lph.get(p.id);
+      if (!cur) {
+        photosPut.push({
+          isNew: true, file: p.file,
+          photo: {
+            id: p.id, projectId: ip.id, zoneId: p.zoneId, num: finalNum.get(p.id), label: p.label || '', qty: qtyOf(p),
+            note: p.note || '', createdAt: p.createdAt || 0, updatedAt: p.updatedAt || p.createdAt || 0,
+            w: p.w || 0, h: p.h || 0, size: p.size || 0, type: p.type || 'image/jpeg',
+          },
+        });
+        report.photosAdded++;
+        continue;
+      }
+      const m = { ...cur };
+      let changed = false;
+      if ((p.updatedAt || 0) > latest(cur.updatedAt, cur.createdAt)) {
+        Object.assign(m, { label: p.label || '', qty: qtyOf(p), note: p.note || '', zoneId: p.zoneId, updatedAt: p.updatedAt });
+        changed = true;
+        report.photosUpdated++;
+      }
+      if (m.num !== finalNum.get(p.id)) {
+        m.num = finalNum.get(p.id);
+        if (!changed) report.renumbered++;
+        changed = true;
+      }
+      if (changed) photosPut.push({ isNew: false, photo: m });
+    }
+    for (const p of localOnly) {
+      if (p.num !== finalNum.get(p.id)) { photosPut.push({ isNew: false, photo: { ...p, num: finalNum.get(p.id) } }); report.renumbered++; }
+    }
+
+    project.seq = Math.max(0, ...finalNum.values());
+    report.changes = report.isNew || report.info || report.notes
+      || report.photosAdded + report.photosUpdated + report.photosDeleted + report.renumbered
+      + report.zonesAdded + report.zonesUpdated + report.zonesDeleted > 0;
+    return { project, zonesPut, zonesDel, photosPut, photosDel, report };
+  }
+
   const RECAP_CSS = `
 :root{--ink:#131B2B;--muted:#586378;--line:#D6DCE5;--accent:#1F49C7;--warn:#9C5B0B}
 *{box-sizing:border-box}
@@ -938,7 +1102,8 @@ ${zonesHtml}
 
   const api = {
     DEFAULT_TAGS, pad, esc, normTag, slugify, tagUsage, searchTags, extFor, sortZones, fmtDateTime, fmtIsoDate,
-    buildExportPlan, buildCsv, buildTsv, inventory, buildInventoryCsv, buildZoneNotesTxt, buildRecapHtml, crc32, makeZip,
+    buildExportPlan, buildCsv, buildTsv, inventory, buildInventoryCsv, buildZoneNotesTxt, buildGeneralNotesTxt,
+    buildRecapHtml, buildAuditJson, isAuditJson, planMerge, crc32, makeZip,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CarnetCore = api;
@@ -956,7 +1121,7 @@ ${zonesHtml}
   const esc = C.esc;
   const pad = C.pad;
 
-  const VERSION = '0.2';
+  const VERSION = '0.3';
   const QUALITY = {
     opt: { max: 1600, q: 0.82, label: 'Optimisée', hint: '1600 px, environ 0,3 Mo par photo' },
     std: { max: 2560, q: 0.85, label: 'Standard', hint: '2560 px, environ 0,7 Mo par photo' },
@@ -1182,7 +1347,7 @@ ${zonesHtml}
     const photo = {
       id: uid(), projectId: project.id, zoneId: zone.id, num: project.seq,
       label: '', qty: null, note: '',
-      createdAt: now, w: img.w, h: img.h, size: fullBuf.byteLength, type: img.type,
+      createdAt: now, updatedAt: now, w: img.w, h: img.h, size: fullBuf.byteLength, type: img.type,
     };
     await S.store.batch([
       { store: 'files', type: 'put', value: { id: photo.id, buf: fullBuf, type: img.type, crc: C.crc32(new Uint8Array(fullBuf)) } },
@@ -1193,14 +1358,25 @@ ${zonesHtml}
     return photo;
   }
 
-  async function deletePhotos(ids) {
+  /* Supprime des photos. Avec projectId, la suppression est mémorisée pour se propager lors d'un partage. */
+  async function deletePhotos(ids, projectId = null, alsoDeleted = []) {
     const ops = [];
     ids.forEach((id) => { ops.push({ store: 'photos', type: 'del', key: id }, { store: 'files', type: 'del', key: id }, { store: 'thumbs', type: 'del', key: id }); dropThumb(id); });
+    if (projectId) {
+      const p = await S.store.get('projects', projectId);
+      if (p) {
+        const now = Date.now();
+        p.deleted = { ...(p.deleted || {}) };
+        [...ids, ...alsoDeleted].forEach((id) => { p.deleted[id] = now; });
+        ops.push({ store: 'projects', type: 'put', value: p });
+      }
+    }
     await S.store.batch(ops);
   }
   async function deleteZone(zoneId) {
+    const z = await S.store.get('zones', zoneId);
     const ps = await S.store.byIndex('photos', 'zoneId', zoneId);
-    await deletePhotos(ps.map((p) => p.id));
+    await deletePhotos(ps.map((p) => p.id), z ? z.projectId : null, [zoneId]);
     await S.store.del('zones', zoneId);
   }
   async function deleteProject(projectId) {
@@ -1364,14 +1540,14 @@ ${zonesHtml}
     const project = {
       id: pid, hotel: 'Hôtel des Tilleuls', city: 'Lyon 2e', date: todayIso(), auditor: '',
       notes: 'Audit d’exemple pour découvrir l’app. Supprime-le avec le crayon en haut à droite quand tu n’en as plus besoin.',
-      seq: 0, example: true, createdAt: now, updatedAt: now,
+      seq: 0, example: true, createdAt: now, updatedAt: now, infoAt: now, notesAt: now, deleted: {},
     };
     const zoneDefs = [
       ['Local technique RDC', 'Accès par badge, clé chez le gardien de nuit.\nPas de climatisation : 28 °C mesurés dans le local.'],
       ['Réception', '2 postes de réception et 1 encodeur de cartes.\nInterlocuteur : responsable de réception.'],
       ['Étage 2, couloir', ''],
     ];
-    const zones = zoneDefs.map(([name, notes], i) => ({ id: uid(), projectId: pid, name, notes, order: i, createdAt: now + i }));
+    const zones = zoneDefs.map(([name, notes], i) => ({ id: uid(), projectId: pid, name, notes, order: i, createdAt: now + i, updatedAt: now + i, notesAt: notes ? now : 0 }));
     const shots = [
       { z: 0, kind: 'rack', label: 'Baie', qty: 1, note: 'Panneau 2 non étiqueté, cordons trop longs. Porte de baie non verrouillée.' },
       { z: 0, kind: 'switch', label: 'Switch', qty: 2, note: 'Modèle et version du firmware à relever sur l’interface d’administration.' },
@@ -1394,7 +1570,7 @@ ${zonesHtml}
       ops.push(
         { store: 'files', type: 'put', value: { id, buf: fullBuf, type: 'image/jpeg', crc: C.crc32(new Uint8Array(fullBuf)) } },
         { store: 'thumbs', type: 'put', value: { id, buf: thumbBuf, type: 'image/jpeg' } },
-        { store: 'photos', type: 'put', value: { id, projectId: pid, zoneId: zones[s.z].id, num: i + 1, label: s.label, qty: s.qty, note: s.note, createdAt: ts, w: 1600, h: 1200, size: fullBuf.byteLength, type: 'image/jpeg' } }
+        { store: 'photos', type: 'put', value: { id, projectId: pid, zoneId: zones[s.z].id, num: i + 1, label: s.label, qty: s.qty, note: s.note, createdAt: ts, updatedAt: ts, w: 1600, h: 1200, size: fullBuf.byteLength, type: 'image/jpeg' } }
       );
     }
     project.seq = shots.length;
@@ -1460,16 +1636,17 @@ ${zonesHtml}
     return out;
   }
 
-  /* ---------- Notes de zone (enregistrement automatique) ---------- */
-  const zoneNotes = { timer: 0, zoneId: null, value: '' };
-  async function flushZoneNotes() {
-    clearTimeout(zoneNotes.timer);
-    if (!zoneNotes.zoneId) return;
-    const { zoneId, value } = zoneNotes;
-    zoneNotes.zoneId = null;
+  /* ---------- Notes générales et notes de zone (enregistrement automatique) ---------- */
+  const pendingNotes = { timer: 0, kind: '', id: null, value: '' };
+  async function flushNotes() {
+    clearTimeout(pendingNotes.timer);
+    if (!pendingNotes.id) return;
+    const { kind, id, value } = pendingNotes;
+    pendingNotes.id = null;
+    const store = kind === 'project' ? 'projects' : 'zones';
     try {
-      const z = await S.store.get('zones', zoneId);
-      if (z && (z.notes || '') !== value) { z.notes = value; await S.store.put('zones', z); }
+      const rec = await S.store.get(store, id);
+      if (rec && (rec.notes || '') !== value) { rec.notes = value; rec.notesAt = Date.now(); await S.store.put(store, rec); }
     } catch (e) { toast('Notes non enregistrées : ' + errMsg(e)); }
   }
   function autoGrow(t) {
@@ -1567,7 +1744,7 @@ ${zonesHtml}
   }
 
   async function render(keepScroll = false) {
-    await flushZoneNotes();
+    await flushNotes();
     const token = ++S.renderToken;
     const y = window.scrollY;
     const r = current();
@@ -1607,7 +1784,7 @@ ${zonesHtml}
         <li><span><strong>Un audit par hôtel</strong>, même si tu en enchaînes plusieurs dans la journée.</span></li>
         <li><span><strong>Une zone par endroit visité</strong> : local technique, réception, étages…</span></li>
         <li><span><strong>Une photo, un tag</strong> : tape quelques lettres (« sw », « tel », « clim ») et choisis. Le fichier est renommé automatiquement.</span></li>
-      </ol><p>L’export ZIP range tout par zone, avec le tableau des notes et l’inventaire, prêt pour le rapport.</p>
+      </ol><p>L’export ZIP range tout par zone, avec le tableau des notes et l’inventaire, prêt pour le rapport. Il sert aussi à passer l’audit à un collègue, qui l’ouvre avec « Importer ».</p>
       <button type="button" class="btn sm" data-act="dismiss-hint">Compris</button></section>`;
     }
     html += `<div class="sec-h"><h2>Audits · ${projects.length}</h2></div>`;
@@ -1626,7 +1803,8 @@ ${zonesHtml}
       html += `<div class="empty">${icon('folder')}<strong>Aucun audit pour l’instant</strong><span>Crée un audit pour le premier hôtel de la journée.</span></div>`;
     }
     html += `<p class="footnote">${icon('info')}<span>Les photos restent sur cet appareil.${S.inFrame ? ' Dans cette version de test, le navigateur peut les effacer : exporte chaque audit en ZIP.' : ' Exporte chaque audit en ZIP une fois terminé.'}</span></p>`;
-    const actions = `<button type="button" class="btn primary big" data-act="new-project">${icon('plus')} Nouvel audit</button>`;
+    const actions = `<label class="btn big" for="in-import" role="button" tabindex="0">${icon('download')} Importer</label>
+      <button type="button" class="btn primary big grow" data-act="new-project">${icon('plus')} Nouvel audit</button>`;
     return { top, html, actions };
   }
 
@@ -1644,7 +1822,11 @@ ${zonesHtml}
     });
     let html = `<section class="pj-head">${statPills(s, zones.length)}
       ${p.auditor || p.example ? `<p class="small">${p.auditor ? `Auditeur : ${esc(p.auditor)}` : ''}${p.example ? '<span class="tag-ex">Audit d’exemple</span>' : ''}</p>` : ''}
-      ${p.notes ? `<p class="pj-notes">${esc(p.notes)}</p>` : ''}</section>`;
+      </section>
+      <section class="znotes">
+        <label for="pj-gnotes">${icon('note')} Notes générales de l’hôtel</label>
+        <textarea id="pj-gnotes" class="input" rows="2" data-notes="project" data-id="${p.id}" data-autogrow placeholder="Points qui ne concernent pas une zone précise : contexte, interlocuteurs, remarques transverses…">${esc(p.notes || '')}</textarea>
+        <span class="small">Enregistrement automatique</span></section>`;
     html += `<div class="sec-h"><h2>Zones · ${zones.length}</h2>${zones.length > 1 ? `<button type="button" class="btn link" data-act="toggle-organize" aria-pressed="${S.organize}">${S.organize ? 'Terminé' : 'Organiser'}</button>` : ''}</div>`;
     if (zones.length) {
       html += `<div class="panel">${zones.map((z, i) => {
@@ -1664,7 +1846,7 @@ ${zonesHtml}
     }
     S.flashZone = null;
     const actions = `<button type="button" class="btn" data-act="add-zone">${icon('plus')} Zone</button>
-      <button type="button" class="btn primary grow" data-act="export"${photos.length ? '' : ' disabled'}>${icon('download')} Exporter le ZIP</button>`;
+      <button type="button" class="btn primary grow" data-act="export"${photos.length ? '' : ' disabled'}>${icon('share')} Exporter / partager</button>`;
     return { top, html, actions };
   }
 
@@ -1684,7 +1866,7 @@ ${zonesHtml}
     let html = statPills(summarize(ps));
     html += `<section class="znotes">
       <label for="zn-notes">${icon('note')} Notes de la zone</label>
-      <textarea id="zn-notes" class="input" rows="2" data-zone="${z.id}" data-autogrow placeholder="Notes en vrac : accès au local, interlocuteur, remarques…">${esc(z.notes || '')}</textarea>
+      <textarea id="zn-notes" class="input" rows="2" data-notes="zone" data-id="${z.id}" data-autogrow placeholder="Notes en vrac : accès au local, interlocuteur, remarques…">${esc(z.notes || '')}</textarea>
       <span class="small">Enregistrement automatique</span></section>`;
     if (ps.length) {
       html += `<div class="pgrid">${ps.map((ph) => `<button type="button" class="ptile" data-act="open-photo" data-id="${ph.id}">
@@ -1988,7 +2170,7 @@ ${zonesHtml}
         if (!ok) return;
         deleted = true;
         clearTimeout(timer);
-        await deletePhotos([ph.id]);
+        await deletePhotos([ph.id], ph.projectId);
         await sheet.close();
         toast('Photo supprimée');
         render(true);
@@ -2006,7 +2188,6 @@ ${zonesHtml}
         <div class="field"><label for="pj-date">Date de l’audit</label><input id="pj-date" class="input" type="date" value="${esc(p.date)}"></div>
       </div>
       <div class="field"><label for="pj-auditor">Auditeur</label><input id="pj-auditor" class="input" value="${esc(p.auditor)}" placeholder="Ton nom" autocomplete="name"></div>
-      <div class="field"><label for="pj-notes">Notes générales</label><textarea id="pj-notes" class="input" rows="3" placeholder="Contexte, interlocuteur sur place, horaires…">${esc(p.notes)}</textarea></div>
       ${isNew ? '' : `<button type="button" class="btn danger" data-local="delete-project">${icon('trash')} Supprimer cet audit</button>`}
     </form>`;
     const foot = `<button type="button" class="btn" data-sheet-dismiss>Annuler</button><button type="submit" form="pj-form" class="btn primary" id="pj-submit">${isNew ? 'Créer l’audit' : 'Enregistrer'}</button>`;
@@ -2016,11 +2197,11 @@ ${zonesHtml}
       e.preventDefault();
       const hotel = $('#pj-hotel', form).value.trim();
       if (!hotel) { $('#pj-err', form).hidden = false; $('#pj-hotel', form).focus(); return; }
-      const data = { hotel, city: $('#pj-city', form).value.trim(), date: $('#pj-date', form).value || todayIso(), auditor: $('#pj-auditor', form).value.trim(), notes: $('#pj-notes', form).value.trim() };
+      const data = { hotel, city: $('#pj-city', form).value.trim(), date: $('#pj-date', form).value || todayIso(), auditor: $('#pj-auditor', form).value.trim(), infoAt: Date.now() };
       try {
         if (isNew) {
           const now = Date.now();
-          const np = { id: uid(), ...data, seq: 0, createdAt: now, updatedAt: now };
+          const np = { id: uid(), ...data, notes: '', notesAt: 0, deleted: {}, seq: 0, createdAt: now, updatedAt: now };
           await S.store.put('projects', np);
           if (data.auditor && !S.settings.auditor) { S.settings.auditor = data.auditor; saveSettings(); }
           await sheet.close();
@@ -2090,7 +2271,8 @@ ${zonesHtml}
       try {
         if (isNew) {
           const order = existing.reduce((m, z) => Math.max(m, z.order || 0), -1) + 1;
-          const nz = { id: uid(), projectId, name, order, createdAt: Date.now() };
+          const t = Date.now();
+          const nz = { id: uid(), projectId, name, notes: '', order, createdAt: t, updatedAt: t, notesAt: 0 };
           await S.store.put('zones', nz);
           S.flashZone = nz.id;
           await sheet.close();
@@ -2099,6 +2281,7 @@ ${zonesHtml}
         } else {
           const cur = await S.store.get('zones', zone.id);
           cur.name = name;
+          cur.updatedAt = Date.now();
           await S.store.put('zones', cur);
           await sheet.close();
           render(true);
@@ -2114,16 +2297,17 @@ ${zonesHtml}
     const i = zs.findIndex((z) => z.id === zoneId), j = i + dir;
     if (i < 0 || j < 0 || j >= zs.length) return;
     [zs[i], zs[j]] = [zs[j], zs[i]];
-    await S.store.batch(zs.map((z, k) => ({ store: 'zones', type: 'put', value: { ...z, order: k } })));
+    await S.store.batch(zs.map((z, k) => ({ store: 'zones', type: 'put', value: { ...z, order: k, updatedAt: z.order === k ? z.updatedAt : Date.now() } })));
     await render(true);
     const btn = $(`[data-act="${dir < 0 ? 'zone-up' : 'zone-down'}"][data-id="${zoneId}"]`);
     if (btn && !btn.disabled) btn.focus({ preventScroll: true });
   }
 
   /* ---------- Export ---------- */
-  function buildTree(plan) {
+  function buildTree(plan, project) {
     const rows = plan.zones.map((z) => [`${z.folder}/`, `${plural(z.items.length, 'photo', 'photos')}${(z.zone.notes || '').trim() ? ' + notes' : ''}`]);
-    rows.push(['notes.csv', 'tableau'], ['inventaire.csv', 'tags et quantités'], ['recapitulatif.html', 'à imprimer']);
+    if ((project.notes || '').trim()) rows.push(['notes-generales.txt', 'notes de l’hôtel']);
+    rows.push(['notes.csv', 'tableau'], ['inventaire.csv', 'tags et quantités'], ['recapitulatif.html', 'à imprimer'], ['audit.json', 'pour l’import dans l’app']);
     const w = Math.max(...rows.map((r) => r[0].length));
     return [plan.root + '/', ...rows.map((r, i) => `${i === rows.length - 1 ? '└─' : '├─'} ${r[0].padEnd(w)}  ${r[1]}`)].join('\n');
   }
@@ -2149,9 +2333,11 @@ ${zonesHtml}
       onProgress(i, plan.items.length);
       if (i % 8 === 0) await tick();
     }
+    if ((p.notes || '').trim()) entries.push({ name: `${plan.root}/notes-generales.txt`, data: enc.encode(C.buildGeneralNotesTxt(p)), date: now });
     entries.push({ name: `${plan.root}/notes.csv`, data: enc.encode(C.buildCsv(plan)), date: now });
     entries.push({ name: `${plan.root}/inventaire.csv`, data: enc.encode(C.buildInventoryCsv(plan)), date: now });
     entries.push({ name: `${plan.root}/recapitulatif.html`, data: enc.encode(C.buildRecapHtml(plan, p, now.getTime())), date: now });
+    entries.push({ name: `${plan.root}/audit.json`, data: enc.encode(C.buildAuditJson(plan, p, zones, { app: VERSION, exportedAt: now.getTime(), exportedBy: S.settings.auditor || '' })), date: now });
     return { blob: C.makeZip(entries), plan };
   }
 
@@ -2171,13 +2357,14 @@ ${zonesHtml}
     const filename = `Audit_${plan.root}.zip`;
     const body = `
       <p class="lead">Un dossier par zone avec ses photos renommées (numéro et tag) et ses notes, le tableau des photos, l’inventaire et un récapitulatif imprimable.</p>
-      <pre class="tree" aria-label="Contenu du ZIP">${esc(buildTree(plan))}</pre>
+      <div class="banner info">${icon('share')}<span><strong>Pour passer l’audit à un collègue</strong>, envoie-lui ce ZIP (AirDrop, Teams…). Il l’ouvre avec <strong>Importer</strong> sur l’accueil de son app, le complète et te le renvoie : ton app fusionne les deux versions.</span></div>
+      <pre class="tree" aria-label="Contenu du ZIP">${esc(buildTree(plan, p))}</pre>
       ${s.todo ? `<div class="banner">${icon('info')}<span>${plural(s.todo, 'photo n’a pas de tag', 'photos n’ont pas de tag')} : ${s.todo > 1 ? 'elles seront nommées' : 'elle sera nommée'} « sans-tag ».</span></div>` : ''}
       <div id="ex-state" class="ex-state" aria-live="polite"></div>
       <button type="button" class="btn ghost" data-local="copy">${icon('copy')} Copier le tableau des notes</button>`;
     const foot = `<button type="button" class="btn primary big" data-local="build">${icon('download')} Préparer le ZIP · ${fmtSize(s.bytes + 30000)}</button>`;
     let blob = null;
-    const sheet = openSheet({ title: 'Exporter l’audit', body, foot, onClose: () => { blob = null; } });
+    const sheet = openSheet({ title: 'Exporter ou partager', body, foot, onClose: () => { blob = null; } });
     const el = sheet.el;
     const state = $('#ex-state', el);
     const footEl = $('.sheet-foot', el);
@@ -2241,6 +2428,173 @@ ${zonesHtml}
         catch (err) { toast('Copie refusée par le navigateur'); }
       }
     });
+  }
+
+  /* ---------- Import d'un audit partagé ---------- */
+  /* Lecture du ZIP par morceaux (sans tout charger en mémoire) : répertoire central, puis chaque fichier à la demande. */
+  async function readZipIndex(file) {
+    const tailLen = Math.min(file.size, 65557);
+    if (tailLen < 22) throw new Error('Ce fichier n’est pas un ZIP.');
+    const tail = new DataView(await file.slice(file.size - tailLen).arrayBuffer());
+    let eocd = -1;
+    for (let i = tailLen - 22; i >= 0; i--) { if (tail.getUint32(i, true) === 0x06054b50) { eocd = i; break; } }
+    if (eocd < 0) throw new Error('Ce fichier n’est pas un ZIP.');
+    const count = tail.getUint16(eocd + 10, true);
+    const cdSize = tail.getUint32(eocd + 12, true);
+    const cdOffset = tail.getUint32(eocd + 16, true);
+    const cd = new DataView(await file.slice(cdOffset, cdOffset + cdSize).arrayBuffer());
+    const dec = new TextDecoder();
+    const entries = new Map();
+    let o = 0;
+    for (let k = 0; k < count && o + 46 <= cd.byteLength; k++) {
+      if (cd.getUint32(o, true) !== 0x02014b50) throw new Error('ZIP endommagé.');
+      const nlen = cd.getUint16(o + 28, true), xlen = cd.getUint16(o + 30, true), clen = cd.getUint16(o + 32, true);
+      const e = {
+        method: cd.getUint16(o + 10, true), crc: cd.getUint32(o + 16, true),
+        csize: cd.getUint32(o + 20, true), off: cd.getUint32(o + 42, true),
+        name: dec.decode(new Uint8Array(cd.buffer, o + 46, nlen)),
+      };
+      entries.set(e.name, e);
+      o += 46 + nlen + xlen + clen;
+    }
+    return entries;
+  }
+  async function readZipEntry(file, e) {
+    const lh = new DataView(await file.slice(e.off, e.off + 30).arrayBuffer());
+    if (lh.getUint32(0, true) !== 0x04034b50) throw new Error('ZIP endommagé.');
+    const start = e.off + 30 + lh.getUint16(26, true) + lh.getUint16(28, true);
+    const part = file.slice(start, start + e.csize);
+    if (e.method === 0) return part.arrayBuffer();
+    if (e.method === 8 && typeof DecompressionStream === 'function') {
+      return new Response(part.stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer();
+    }
+    throw new Error('Format de compression non pris en charge.');
+  }
+
+  function onImportInput(input) {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    S.queue = S.queue.then(() => prepareImport(file)).catch((e) => { busy(false); console.error(e); toast(errMsg(e), 6000); });
+  }
+
+  async function prepareImport(file) {
+    await closeAllSheets();
+    busy('Lecture du fichier…');
+    let entries, inc, base;
+    try {
+      entries = await readZipIndex(file);
+      const json = [...entries.values()].find((e) => /(^|\/)audit\.json$/.test(e.name));
+      if (!json) throw new Error('Ce ZIP ne contient pas les données de l’app. Demande un export fait avec la version 0.3 ou plus récente.');
+      inc = JSON.parse(new TextDecoder().decode(await readZipEntry(file, json)));
+      if (!C.isAuditJson(inc)) throw new Error('Fichier d’audit non reconnu.');
+      base = json.name.slice(0, json.name.length - 'audit.json'.length);
+    } finally { busy(false); }
+    const lp = await S.store.get('projects', inc.project.id);
+    const local = {
+      project: lp || null,
+      zones: lp ? await S.store.byIndex('zones', 'projectId', lp.id) : [],
+      photos: lp ? await S.store.byIndex('photos', 'projectId', lp.id) : [],
+    };
+    openImportSheet(file, entries, base, inc, C.planMerge(local, inc));
+  }
+
+  async function openImportSheet(file, entries, base, inc, plan) {
+    const r = plan.report;
+    const ip = inc.project;
+    const bytes = plan.photosPut.filter((x) => x.isNew).reduce((t, x) => t + (x.photo.size || 0), 0);
+    const est = await storageEstimate();
+    const lowSpace = !!(est && est.quota && est.quota - est.usage < bytes * 1.3);
+    const lines = [];
+    if (r.isNew) lines.push(plural(inc.photos.length, 'photo', 'photos'), plural(inc.zones.length, 'zone', 'zones'));
+    else {
+      if (r.photosAdded) lines.push(plural(r.photosAdded, 'photo ajoutée', 'photos ajoutées'));
+      if (r.photosUpdated) lines.push(plural(r.photosUpdated, 'photo modifiée', 'photos modifiées'));
+      if (r.photosDeleted) lines.push(plural(r.photosDeleted, 'photo supprimée', 'photos supprimées'));
+      if (r.zonesAdded) lines.push(plural(r.zonesAdded, 'zone ajoutée', 'zones ajoutées'));
+      if (r.zonesUpdated) lines.push(plural(r.zonesUpdated, 'zone modifiée', 'zones modifiées'));
+      if (r.zonesDeleted) lines.push(plural(r.zonesDeleted, 'zone supprimée', 'zones supprimées'));
+      if (r.notes) lines.push('Notes générales mises à jour');
+      if (r.info) lines.push('Informations de l’audit mises à jour');
+      if (r.renumbered) lines.push(`${plural(r.renumbered, 'photo renumérotée', 'photos renumérotées')} (ajoutées des deux côtés)`);
+    }
+    const from = [inc.exportedBy ? `par ${inc.exportedBy}` : '', inc.exportedAt ? `le ${C.fmtDateTime(inc.exportedAt)}` : ''].filter(Boolean).join(' ');
+    const intro = r.isNew ? 'Nouvel audit sur ce téléphone :'
+      : r.changes ? 'Tu as déjà cet audit. Le fichier reçu apporte :' : 'Tu as déjà cet audit et il est à jour : rien à importer.';
+    const body = `
+      <div class="imp-head"><span class="imp-ic">${icon('folder')}</span><div>
+        <strong class="imp-title">${esc(ip.hotel || 'Audit')}</strong>
+        <span class="small">${esc([fmtDay(ip.date), ip.city].filter(Boolean).join(' · '))}</span>
+        ${from ? `<span class="small">Exporté ${esc(from)}</span>` : ''}</div></div>
+      <p class="lead">${intro}</p>
+      ${lines.length ? `<ul class="imp-list">${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
+      ${!r.isNew && r.changes ? '<p class="small">Si un même élément a été modifié des deux côtés, la modification la plus récente est gardée.</p>' : ''}
+      ${lowSpace ? `<div class="banner bad">${icon('info')}<span>Il ne reste peut-être pas assez de place sur ce téléphone (${fmtSize(bytes)} à importer).</span></div>` : ''}
+      <div id="imp-state" class="ex-state" aria-live="polite"></div>`;
+    const foot = r.changes
+      ? `<button type="button" class="btn" data-sheet-dismiss>Annuler</button><button type="button" class="btn primary" data-local="go">${icon('download')} ${r.isNew ? 'Importer l’audit' : 'Fusionner'}</button>`
+      : '<button type="button" class="btn primary" data-sheet-dismiss>Fermer</button>';
+    const sheet = openSheet({ title: 'Importer un audit', body, foot });
+    const el = sheet.el;
+    el.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-local="go"]');
+      if (!b || b.disabled) return;
+      b.disabled = true;
+      const state = $('#imp-state', el);
+      state.innerHTML = '<div class="progress"><i></i></div><p class="small" id="imp-prog">Import…</p>';
+      try {
+        const res = await applyImport(file, entries, base, plan, (i, n) => {
+          const bar = $('.progress i', state); if (bar) bar.style.width = `${Math.round((i / Math.max(1, n)) * 100)}%`;
+          const t = $('#imp-prog', state); if (t) t.textContent = `Import des photos… ${i}/${n}`;
+        });
+        await sheet.close();
+        S.nav = [{ name: 'home' }];
+        go({ name: 'project', id: plan.project.id });
+        toast(res.missing ? `Import terminé, ${plural(res.missing, 'photo manquante', 'photos manquantes')} dans le fichier` : (r.isNew ? `Audit « ${plan.project.hotel} » importé` : 'Audit fusionné'), 4000);
+      } catch (err) {
+        console.error(err);
+        state.innerHTML = `<div class="banner bad">${icon('info')}<span>Import interrompu : ${esc(errMsg(err))}. Tu peux relancer l’import, rien ne sera dupliqué.</span></div>`;
+        b.disabled = false;
+      }
+    });
+  }
+
+  async function applyImport(file, entries, base, plan, onProgress) {
+    await S.store.put('projects', plan.project);
+    await S.store.batch([
+      ...plan.zonesPut.map((z) => ({ store: 'zones', type: 'put', value: z })),
+      ...plan.zonesDel.map((id) => ({ store: 'zones', type: 'del', key: id })),
+    ]);
+    if (plan.photosDel.length) await deletePhotos(plan.photosDel);
+    const updates = plan.photosPut.filter((x) => !x.isNew);
+    if (updates.length) await S.store.batch(updates.map((x) => ({ store: 'photos', type: 'put', value: x.photo })));
+    const news = plan.photosPut.filter((x) => x.isNew);
+    let missing = 0;
+    for (let i = 0; i < news.length; i++) {
+      const x = news[i];
+      onProgress(i + 1, news.length);
+      const e = entries.get(base + x.file);
+      if (!e) { missing++; continue; }
+      const buf = await readZipEntry(file, e);
+      const type = x.photo.type || 'image/jpeg';
+      let thumbBuf = null;
+      try {
+        const { img, url } = await loadImage(new Blob([buf], { type }));
+        try { thumbBuf = await blobToBuf((await renderScaled(img, img.naturalWidth, img.naturalHeight, 480, 0.72)).blob); }
+        finally { URL.revokeObjectURL(url); }
+      } catch (err) { /* miniature impossible : la photo est quand même importée */ }
+      const crc = e.method === 0 ? e.crc >>> 0 : C.crc32(new Uint8Array(buf));
+      await S.store.batch([
+        { store: 'files', type: 'put', value: { id: x.photo.id, buf, type, crc } },
+        ...(thumbBuf ? [{ store: 'thumbs', type: 'put', value: { id: x.photo.id, buf: thumbBuf, type: 'image/jpeg' } }] : []),
+        { store: 'photos', type: 'put', value: { ...x.photo, size: buf.byteLength } },
+      ]);
+    }
+    // Les tags utilisés par le collègue rejoignent la liste de ce téléphone.
+    const known = new Set(allTags().map((t) => C.normTag(t.name)));
+    const fresh = [...new Set(plan.photosPut.map((x) => x.photo.label).filter((l) => l && !known.has(C.normTag(l))))];
+    for (const l of fresh) await addCustomTag(l);
+    return { missing };
   }
 
   /* ---------- Réglages ---------- */
@@ -2441,20 +2795,21 @@ ${zonesHtml}
     });
     document.addEventListener('input', (e) => {
       const t = e.target;
-      if (t.id !== 'zn-notes') return;
-      zoneNotes.zoneId = t.dataset.zone;
-      zoneNotes.value = t.value;
-      clearTimeout(zoneNotes.timer);
-      zoneNotes.timer = setTimeout(flushZoneNotes, 600);
+      if (!t.dataset || !t.dataset.notes) return;
+      if (pendingNotes.id && pendingNotes.id !== t.dataset.id) flushNotes();
+      Object.assign(pendingNotes, { kind: t.dataset.notes, id: t.dataset.id, value: t.value });
+      clearTimeout(pendingNotes.timer);
+      pendingNotes.timer = setTimeout(flushNotes, 600);
       autoGrow(t);
     });
-    document.addEventListener('focusout', (e) => { if (e.target.id === 'zn-notes') flushZoneNotes(); });
+    document.addEventListener('focusout', (e) => { if (e.target.dataset && e.target.dataset.notes) flushNotes(); });
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState !== 'hidden') return;
-      flushZoneNotes();
+      flushNotes();
       if (S.activePhoto) S.activePhoto.flush();
     });
     $('#in-camera').addEventListener('change', (e) => onFileInput(e.target));
+    $('#in-import').addEventListener('change', (e) => onImportInput(e.target));
     $('#in-gallery').addEventListener('change', (e) => onFileInput(e.target));
   }
 
