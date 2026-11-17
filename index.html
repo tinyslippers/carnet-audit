@@ -652,6 +652,48 @@ li:first-child > .tag-opt { border-top: 0; }
   .progress i { transition: none; }
 }
 
+/* ---------- Doublons ---------- */
+.pill.dup { gap: 5px; border-color: transparent; background: var(--bad-soft); color: var(--bad); }
+.pill.dup .ic { width: 14px; height: 14px; }
+.banner > span { flex: 1; min-width: 0; }
+.banner .btn { flex: none; align-self: center; margin: -4px 0; }
+.dup-all { justify-self: start; margin: -10px 0 -6px -10px; }
+.dup-list { display: grid; gap: 8px; }
+.dup-row {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  padding: 8px 12px 8px 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: pointer;
+}
+.dup-row img { display: block; width: 64px; height: 48px; border-radius: 8px; object-fit: cover; background: var(--line); }
+.dup-txt { display: grid; gap: 2px; min-width: 0; }
+.dup-txt strong { overflow: hidden; font-size: 13px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.dup-kind { color: var(--muted); }
+.dup-add { display: grid; justify-items: center; gap: 2px; color: var(--muted); font-size: 12px; }
+.dup-add input { width: 22px; height: 22px; margin: 0; accent-color: var(--accent); }
+.dup-row:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.dupg-list { display: grid; gap: 22px; }
+.dupg { display: grid; gap: 10px; }
+.dupg-h { display: flex; align-items: center; gap: 10px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+.dupg-h .btn { margin: -6px -10px -6px auto; }
+.dupg-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.duptile { display: grid; gap: 3px; padding: 0; border: 0; background: none; color: inherit; text-align: left; }
+.dt-img {
+  position: relative; display: block; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 10px;
+  background: var(--line); outline: 3px solid transparent; outline-offset: -3px;
+}
+.dt-img img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.dt-state {
+  position: absolute; left: 6px; bottom: 6px; display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 8px; border-radius: 6px; color: #fff; font-size: 12px; font-weight: 700; line-height: 1;
+}
+.dt-state .ic { width: 14px; height: 14px; }
+.duptile.keep .dt-img { outline-color: var(--accent); }
+.duptile.keep .dt-state { background: var(--accent); color: var(--accent-ink); }
+.duptile.drop .dt-img img { opacity: .5; filter: grayscale(.5); }
+.duptile.drop .dt-state { background: #B3261E; }
+.dt-num { font-size: 13px; font-weight: 600; }
+.duptile.drop .dt-num { color: var(--muted); text-decoration: line-through; }
+@media (min-width: 900px) { .sheet.dups { max-width: 920px; } }
+
 </style>
 </head>
 <body>
@@ -914,9 +956,19 @@ li:first-child > .tag-opt { border-top: 0; }
           id: p.id, zoneId: p.zoneId, num: p.num || 0, label: p.label || '', qty: qtyOf(p), note: p.note || '',
           createdAt: p.createdAt || 0, updatedAt: p.updatedAt || p.createdAt || 0, takenAt: p.takenAt || 0,
           w: p.w || 0, h: p.h || 0, size: p.size || 0, type: p.type || 'image/jpeg', file: it.rel,
+          ...prints(p),
         };
       }),
     });
+  }
+
+  /* Empreintes servant à repérer les doublons (absentes des photos d'avant la V0.6). */
+  function prints(p) {
+    const o = {};
+    if (p.srcHash) o.srcHash = String(p.srcHash);
+    if (p.phash) o.phash = String(p.phash);
+    if (typeof p.exif === 'boolean') o.exif = p.exif;
+    return o;
   }
 
   function isAuditJson(d) {
@@ -1008,7 +1060,7 @@ li:first-child > .tag-opt { border-top: 0; }
           photo: {
             id: p.id, projectId: ip.id, zoneId: p.zoneId, num: finalNum.get(p.id), label: p.label || '', qty: qtyOf(p),
             note: p.note || '', createdAt: p.createdAt || 0, updatedAt: p.updatedAt || p.createdAt || 0, takenAt: p.takenAt || 0,
-            w: p.w || 0, h: p.h || 0, size: p.size || 0, type: p.type || 'image/jpeg',
+            w: p.w || 0, h: p.h || 0, size: p.size || 0, type: p.type || 'image/jpeg', ...prints(p),
           },
         });
         report.photosAdded++;
@@ -1026,6 +1078,7 @@ li:first-child > .tag-opt { border-top: 0; }
         if (!changed) report.renumbered++;
         changed = true;
       }
+      if (changed) { for (const [k, v] of Object.entries(prints(p))) if (m[k] === undefined) m[k] = v; }
       if (changed) photosPut.push({ isNew: false, photo: m });
     }
     for (const p of localOnly) {
@@ -1038,6 +1091,93 @@ li:first-child > .tag-opt { border-top: 0; }
       + report.zonesAdded + report.zonesUpdated + report.zonesDeleted > 0;
     return { project, zonesPut, zonesDel, photosPut, photosDel, report };
   }
+
+  /* ---------- Doublons ----------
+     Deux photos sont des doublons si leur fichier d'origine est identique (srcHash), ou si elles ont été
+     prises à la même seconde (date EXIF) et sont identiques à l'œil (phash) : même photo recompressée,
+     convertie ou redimensionnée. Deux photos d'équipements identiques prises à des moments différents
+     ne sont jamais des doublons. */
+  const DUP_WINDOW = 1000;
+  const DUP_DIST = 24;
+  const shotTime = (p) => Number(p.takenAt) || Number(p.createdAt) || 0;
+
+  /* Empreinte visuelle : 17×16 niveaux de gris, chaque case comparée à sa voisine de droite (256 bits en hexadécimal).
+     Une case n'est « plus claire » que si l'écart dépasse delta : les zones unies (murs, plafonds) donnent alors
+     toujours 0 et l'empreinte bouge peu quand la photo est recompressée ou réduite. Mesuré sur des photos réelles :
+     une dizaine de bits sur 256 en médiane après recompression, au moins 59 entre deux photos différentes. */
+  function dhash(gray, w = 17, h = 16, delta = 2) {
+    let hex = '';
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x + 4 < w; x += 4) {
+        let nib = 0;
+        for (let k = 0; k < 4; k++) { const i = y * w + x + k; nib = (nib << 1) | (gray[i] > gray[i + 1] + delta ? 1 : 0); }
+        hex += nib.toString(16);
+      }
+    }
+    return hex;
+  }
+  /* Même empreinte à partir de pixels RGBA (canvas réduit) : moyenne de la luminance par case. */
+  function phashFromRgba(data, sw, sh, w = 17, h = 16) {
+    const sum = new Float64Array(w * h);
+    const cnt = new Uint32Array(w * h);
+    for (let y = 0; y < sh; y++) {
+      const cy = Math.min(h - 1, Math.floor((y * h) / sh));
+      for (let x = 0; x < sw; x++) {
+        const c = cy * w + Math.min(w - 1, Math.floor((x * w) / sw));
+        const i = (y * sw + x) * 4;
+        sum[c] += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        cnt[c]++;
+      }
+    }
+    return dhash(Array.from(sum, (v, i) => (cnt[i] ? v / cnt[i] : 0)), w, h);
+  }
+  const POP4 = [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4];
+  function hamming(a, b) {
+    if (!a || !b || a.length !== b.length) return Infinity;
+    let d = 0;
+    for (let i = 0; i < a.length; i++) {
+      const u = parseInt(a[i], 16), v = parseInt(b[i], 16);
+      if (Number.isNaN(u) || Number.isNaN(v)) return Infinity;
+      d += POP4[(u ^ v) & 15];
+    }
+    return d;
+  }
+  /* 'file' (même fichier), 'shot' (même prise de vue) ou ''. */
+  function dupKind(a, b) {
+    if (!a || !b || a === b || (a.id && a.id === b.id)) return '';
+    if (a.srcHash && a.srcHash === b.srcHash) return 'file';
+    if (a.exif === false || b.exif === false || !a.phash || !b.phash) return '';
+    if (Math.abs(shotTime(a) - shotTime(b)) > DUP_WINDOW) return '';
+    return hamming(a.phash, b.phash) <= DUP_DIST ? 'shot' : '';
+  }
+  /* Copie à garder : celle qui porte le plus d'informations (tag, note, quantité, zone), sinon la plus ancienne. */
+  function pickKeeper(group) {
+    const score = (p) => (p.label ? 8 : 0) + ((p.note || '').trim() ? 4 : 0) + (qtyOf(p) ? 2 : 0) + (p.zoneId ? 1 : 0);
+    return group.slice().sort((a, b) => score(b) - score(a) || (a.num || 0) - (b.num || 0) || (a.createdAt || 0) - (b.createdAt || 0))[0];
+  }
+  /* Groupes de doublons parmi les photos d'un audit : [{ kind, photos (par numéro), keep (id) }]. */
+  function dupGroups(photos) {
+    const parent = photos.map((_, i) => i);
+    const find = (i) => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+    const join = (i, j) => { const a = find(i), b = find(j); if (a !== b) parent[Math.max(a, b)] = Math.min(a, b); };
+    const seen = new Map();
+    photos.forEach((p, i) => { if (!p.srcHash) return; if (seen.has(p.srcHash)) join(seen.get(p.srcHash), i); else seen.set(p.srcHash, i); });
+    const order = photos.map((_, i) => i).sort((i, j) => shotTime(photos[i]) - shotTime(photos[j]));
+    for (let x = 0; x < order.length; x++) {
+      const a = photos[order[x]];
+      for (let y = x + 1; y < order.length && shotTime(photos[order[y]]) - shotTime(a) <= DUP_WINDOW; y++) {
+        if (dupKind(a, photos[order[y]]) === 'shot') join(order[x], order[y]);
+      }
+    }
+    const groups = new Map();
+    photos.forEach((p, i) => { const r = find(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(p); });
+    return [...groups.values()].filter((g) => g.length > 1).map((g) => {
+      g.sort((a, b) => (a.num || 0) - (b.num || 0) || (a.createdAt || 0) - (b.createdAt || 0));
+      const same = g.every((p) => p.srcHash && p.srcHash === g[0].srcHash);
+      return { kind: same ? 'file' : 'shot', photos: g, keep: pickKeeper(g).id };
+    }).sort((a, b) => (a.photos[0].num || 0) - (b.photos[0].num || 0));
+  }
+  const dupExtra = (groups) => groups.reduce((t, g) => t + g.photos.length - 1, 0);
 
   const RECAP_CSS = `
 :root{--ink:#131B2B;--muted:#586378;--line:#D6DCE5;--accent:#1F49C7;--warn:#9C5B0B}
@@ -1269,6 +1409,7 @@ ${zonesHtml}
     DEFAULT_TAGS, pad, esc, normTag, slugify, tagUsage, searchTags, extFor, sortZones, fmtDateTime, fmtIsoDate,
     buildExportPlan, buildCsv, buildTsv, inventory, buildInventoryCsv, buildZoneNotesTxt, buildGeneralNotesTxt,
     buildRecapHtml, buildAuditJson, isAuditJson, planMerge, exifDate, crc32, makeZip,
+    DUP_WINDOW, DUP_DIST, dhash, phashFromRgba, hamming, dupKind, pickKeeper, dupGroups, dupExtra,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CarnetCore = api;
@@ -1286,7 +1427,7 @@ ${zonesHtml}
   const esc = C.esc;
   const pad = C.pad;
 
-  const VERSION = '0.5';
+  const VERSION = '0.6';
   const QUALITY = {
     opt: { max: 1600, q: 0.82, label: 'Optimisée', hint: '1600 px, environ 0,3 Mo par photo' },
     std: { max: 2560, q: 0.85, label: 'Standard', hint: '2560 px, environ 0,7 Mo par photo' },
@@ -1446,6 +1587,7 @@ ${zonesHtml}
     downloadsPromise: null,
     renderToken: 0,
     persistAsked: false,
+    phCache: new Map(),
   };
 
   async function loadSettings() {
@@ -1484,7 +1626,34 @@ ${zonesHtml}
   function canvasToBlob(canvas, type, q) {
     return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Conversion impossible'))), type, q));
   }
-  async function renderScaled(source, sw, sh, maxDim, q) {
+  /* Empreinte visuelle (voir core.dupKind) : image réduite à 68×64, puis moyennée en 17×16 cases. */
+  function phashFrom(source) {
+    try {
+      const c = document.createElement('canvas');
+      c.width = 68; c.height = 64;
+      const g = c.getContext('2d', { willReadFrequently: true });
+      g.imageSmoothingEnabled = true;
+      g.imageSmoothingQuality = 'high';
+      g.drawImage(source, 0, 0, 68, 64);
+      const ph = C.phashFromRgba(g.getImageData(0, 0, 68, 64).data, 68, 64);
+      c.width = 0; c.height = 0;
+      return ph;
+    } catch (e) { return ''; }
+  }
+  /* Empreinte du fichier d'origine : SHA-256 (32 premiers caractères), sinon CRC32 + taille. */
+  async function fileHash(buf) {
+    try {
+      const subtle = window.crypto && window.crypto.subtle;
+      if (subtle) {
+        const d = new Uint8Array(await subtle.digest('SHA-256', buf));
+        let h = '';
+        for (let i = 0; i < 16; i++) h += d[i].toString(16).padStart(2, '0');
+        return h;
+      }
+    } catch (e) { /* repli ci-dessous */ }
+    return `c${(C.crc32(new Uint8Array(buf)) >>> 0).toString(16)}-${buf.byteLength}`;
+  }
+  async function renderScaled(source, sw, sh, maxDim, q, opts = {}) {
     const scale = maxDim ? Math.min(1, maxDim / Math.max(sw, sh)) : 1;
     const w = Math.max(1, Math.round(sw * scale));
     const h = Math.max(1, Math.round(sh * scale));
@@ -1496,9 +1665,10 @@ ${zonesHtml}
     g.fillStyle = '#ffffff';
     g.fillRect(0, 0, w, h);
     g.drawImage(source, 0, 0, w, h);
+    const phash = opts.phash ? phashFrom(c) : '';
     const blob = await canvasToBlob(c, 'image/jpeg', q);
     c.width = 0; c.height = 0; // libère la mémoire sur iOS
-    return { blob, w, h };
+    return { blob, w, h, phash };
   }
   async function processImage(file, quality) {
     const { img, url } = await loadImage(file);
@@ -1506,16 +1676,24 @@ ${zonesHtml}
       let w = img.naturalWidth, h = img.naturalHeight, full = file;
       const keep = !quality.max || (Math.max(w, h) <= quality.max && /jpe?g/i.test(file.type || ''));
       if (!keep) { const r = await renderScaled(img, w, h, quality.max, quality.q); full = r.blob; w = r.w; h = r.h; }
-      const t = await renderScaled(img, img.naturalWidth, img.naturalHeight, 480, 0.72);
-      return { full, type: keep ? (file.type || 'image/jpeg') : 'image/jpeg', thumb: t.blob, w, h };
+      const t = await renderScaled(img, img.naturalWidth, img.naturalHeight, 480, 0.72, { phash: true });
+      return { full, type: keep ? (file.type || 'image/jpeg') : 'image/jpeg', thumb: t.blob, w, h, phash: t.phash };
     } finally { URL.revokeObjectURL(url); }
   }
 
-  async function addPhoto(zone, file, takenAt = null) {
+  /* Ajoute une photo. Avec opts.pool (index des photos existantes), une photo déjà présente n'est pas
+     ajoutée : la fonction renvoie alors { dup: photo existante, kind: 'file' | 'shot' }. */
+  async function addPhoto(zone, file, takenAt = null, opts = {}) {
+    const pool = opts.pool || null;
+    const exif = typeof opts.exif === 'boolean' ? opts.exif : undefined;
+    const src = await blobToBuf(file);
+    const srcHash = await fileHash(src);
+    if (pool) { const m = pool.byHash.get(srcHash); if (m) return { dup: m, kind: 'file' }; }
+    const img = await processImage(file, QUALITY[S.settings.quality] || QUALITY.std);
+    if (pool) { const m = await pool.shot({ phash: img.phash, takenAt: takenAt || 0, exif }); if (m) return { dup: m, kind: 'shot' }; }
     const project = await S.store.get('projects', zone.projectId);
     if (!project) throw new Error('Audit introuvable');
-    const img = await processImage(file, QUALITY[S.settings.quality] || QUALITY.std);
-    const fullBuf = await blobToBuf(img.full);
+    const fullBuf = img.full === file ? src : await blobToBuf(img.full);
     const thumbBuf = await blobToBuf(img.thumb);
     const now = Date.now();
     project.seq = (project.seq || 0) + 1;
@@ -1524,6 +1702,7 @@ ${zonesHtml}
       id: uid(), projectId: project.id, zoneId: zone.id, num: project.seq,
       label: '', qty: null, note: '',
       createdAt: now, updatedAt: now, takenAt: takenAt || now, w: img.w, h: img.h, size: fullBuf.byteLength, type: img.type,
+      srcHash, ...(img.phash ? { phash: img.phash } : {}), ...(exif !== undefined ? { exif } : {}),
     };
     await S.store.batch([
       { store: 'files', type: 'put', value: { id: photo.id, buf: fullBuf, type: img.type, crc: C.crc32(new Uint8Array(fullBuf)) } },
@@ -1531,7 +1710,61 @@ ${zonesHtml}
       { store: 'photos', type: 'put', value: photo },
       { store: 'projects', type: 'put', value: project },
     ]);
+    if (pool) pool.add(photo);
     return photo;
+  }
+
+  /* ---------- Doublons ---------- */
+  /* Empreinte visuelle d'une photo enregistrée avant la V0.6 : calculée sur sa miniature, gardée en mémoire. */
+  async function storedPhash(p) {
+    if (p.phash) return p.phash;
+    if (S.phCache.has(p.id)) return S.phCache.get(p.id);
+    let ph = '';
+    try {
+      const rec = await S.store.get('thumbs', p.id);
+      if (rec && rec.buf) {
+        const { img, url } = await loadImage(new Blob([rec.buf], { type: rec.type || 'image/jpeg' }));
+        try { ph = phashFrom(img); } finally { URL.revokeObjectURL(url); }
+      }
+    } catch (e) { ph = ''; }
+    S.phCache.set(p.id, ph);
+    return ph;
+  }
+  /* Index de toutes les photos du téléphone (tous audits), celles de l'audit visé en premier. */
+  async function dupPool(projectId) {
+    const all = await S.store.all('photos');
+    all.sort((a, b) => (a.projectId === projectId ? 0 : 1) - (b.projectId === projectId ? 0 : 1));
+    const byHash = new Map();
+    for (const x of all) if (x.srcHash && !byHash.has(x.srcHash)) byHash.set(x.srcHash, x);
+    return {
+      byHash,
+      add(x) { all.unshift(x); if (x.srcHash && !byHash.has(x.srcHash)) byHash.set(x.srcHash, x); },
+      async shot(c) {
+        if (!c.phash || c.exif === false || !c.takenAt) return null;
+        for (const x of all) {
+          if (x.exif === false || Math.abs(takenOf(x) - c.takenAt) > C.DUP_WINDOW) continue;
+          const ph = await storedPhash(x);
+          if (C.dupKind(c, { ...x, phash: ph }) === 'shot') return x;
+        }
+        return null;
+      },
+    };
+  }
+  /* Groupes de doublons d'un audit. Les empreintes visuelles manquantes ne sont calculées que pour
+     les photos prises à la même seconde qu'une autre. */
+  async function findDupGroups(projectId, photos = null) {
+    const list = photos || await S.store.byIndex('photos', 'projectId', projectId);
+    const sorted = list.filter((x) => x.exif !== false).sort((a, b) => takenOf(a) - takenOf(b));
+    const need = new Set();
+    for (let i = 0; i < sorted.length; i++) {
+      for (let j = i + 1; j < sorted.length && takenOf(sorted[j]) - takenOf(sorted[i]) <= C.DUP_WINDOW; j++) {
+        if (!sorted[i].phash) need.add(sorted[i]);
+        if (!sorted[j].phash) need.add(sorted[j]);
+      }
+    }
+    const filled = new Map();
+    for (const x of need) filled.set(x.id, await storedPhash(x));
+    return C.dupGroups(list.map((x) => (filled.has(x.id) ? { ...x, phash: filled.get(x.id) } : x)));
   }
 
   /* Supprime des photos. Avec projectId, la suppression est mémorisée pour se propager lors d'un partage. */
@@ -2030,7 +2263,7 @@ ${zonesHtml}
     S.flashZone = null;
     const actions = `<button type="button" class="btn" data-act="add-zone">${icon('plus')} Zone</button>
       <button type="button" class="btn primary grow" data-act="export"${photos.length ? '' : ' disabled'}>${icon('share')} Exporter / partager</button>`;
-    return { top, html, actions };
+    return { top, html, actions, after: () => { if (photos.length > 1) showDupPill(id, photos); } };
   }
 
   /* ---------- « À trier » : encadré de l'audit et écran de sélection ---------- */
@@ -2901,6 +3134,13 @@ ${zonesHtml}
     const el = sheet.el;
     const state = $('#ex-state', el);
     const footEl = $('.sheet-foot', el);
+    if (photos.length > 1) {
+      findDupGroups(projectId, photos).then((groups) => {
+        const extra = C.dupExtra(groups);
+        if (!extra || !el.isConnected) return;
+        state.insertAdjacentHTML('beforebegin', `<div class="banner" id="ex-dups">${icon('copy')}<span>${plural(extra, 'photo est en double', 'photos sont en double')} dans l’audit.</span><button type="button" class="btn sm" data-local="dups">Vérifier</button></div>`);
+      }).catch(() => {});
+    }
 
     async function showReady() {
       state.innerHTML = `<div class="ready">${icon('check')}<span><strong class="mono">${esc(filename)}</strong><br><span class="small">${fmtSize(blob.size)} · ${plural(plan.items.length, 'photo', 'photos')}</span></span></div>`;
@@ -2959,6 +3199,8 @@ ${zonesHtml}
       } else if (act === 'copy') {
         try { await navigator.clipboard.writeText(C.buildTsv(plan)); toast('Tableau copié : colle-le dans Excel ou Word'); }
         catch (err) { toast('Copie refusée par le navigateur'); }
+      } else if (act === 'dups') {
+        openDupReview(projectId, { onDone: async (n) => { if (n) { await sheet.close(); openExportSheet(projectId); } } });
       }
     });
   }
@@ -3083,7 +3325,10 @@ ${zonesHtml}
         await sheet.close();
         S.nav = [{ name: 'home' }];
         go({ name: 'project', id: plan.project.id });
-        toast(res.missing ? `Import terminé, ${plural(res.missing, 'photo manquante', 'photos manquantes')} dans le fichier` : (r.isNew ? `Audit « ${plan.project.hotel} » importé` : 'Audit fusionné'), 4000);
+        let extra = 0;
+        try { extra = C.dupExtra(await findDupGroups(plan.project.id)); } catch (err) { extra = 0; }
+        const msg = res.missing ? `Import terminé, ${plural(res.missing, 'photo manquante', 'photos manquantes')} dans le fichier` : (r.isNew ? `Audit « ${plan.project.hotel} » importé` : 'Audit fusionné');
+        toast(extra ? `${msg} · ${plural(extra, 'doublon', 'doublons')} à vérifier` : msg, extra ? 6000 : 4000);
       } catch (err) {
         console.error(err);
         state.innerHTML = `<div class="banner bad">${icon('info')}<span>Import interrompu : ${esc(errMsg(err))}. Tu peux relancer l’import, rien ne sera dupliqué.</span></div>`;
@@ -3110,17 +3355,20 @@ ${zonesHtml}
       if (!e) { missing++; continue; }
       const buf = await readZipEntry(file, e);
       const type = x.photo.type || 'image/jpeg';
-      let thumbBuf = null;
+      let thumbBuf = null, phash = '';
       try {
         const { img, url } = await loadImage(new Blob([buf], { type }));
-        try { thumbBuf = await blobToBuf((await renderScaled(img, img.naturalWidth, img.naturalHeight, 480, 0.72)).blob); }
-        finally { URL.revokeObjectURL(url); }
+        try {
+          const t = await renderScaled(img, img.naturalWidth, img.naturalHeight, 480, 0.72, { phash: !x.photo.phash });
+          thumbBuf = await blobToBuf(t.blob);
+          phash = t.phash;
+        } finally { URL.revokeObjectURL(url); }
       } catch (err) { /* miniature impossible : la photo est quand même importée */ }
       const crc = e.method === 0 ? e.crc >>> 0 : C.crc32(new Uint8Array(buf));
       await S.store.batch([
         { store: 'files', type: 'put', value: { id: x.photo.id, buf, type, crc } },
         ...(thumbBuf ? [{ store: 'thumbs', type: 'put', value: { id: x.photo.id, buf: thumbBuf, type: 'image/jpeg' } }] : []),
-        { store: 'photos', type: 'put', value: { ...x.photo, size: buf.byteLength } },
+        { store: 'photos', type: 'put', value: { ...x.photo, size: buf.byteLength, ...(phash && !x.photo.phash ? { phash } : {}) } },
       ]);
     }
     // Les tags utilisés par le collègue rejoignent la liste de ce téléphone.
@@ -3259,7 +3507,8 @@ ${zonesHtml}
     const zoneId = S.captureZoneId || (r.name === 'zone' ? r.id : null);
     S.captureZoneId = null;
     if (!files.length || !zoneId) return;
-    S.queue = S.queue.then(() => ingest(files, zoneId)).catch((e) => { busy(false); console.error(e); toast('Import impossible : ' + errMsg(e)); });
+    const camera = input.id === 'in-camera';
+    S.queue = S.queue.then(() => ingest(files, zoneId, { camera })).catch((e) => { busy(false); console.error(e); toast('Import impossible : ' + errMsg(e)); });
   }
 
   /* Ajoute des photos à une zone, dans l'ordre de prise de vue (EXIF, sinon date du fichier). */
@@ -3277,15 +3526,18 @@ ${zonesHtml}
     for (const f of files) {
       let t = null;
       try { t = C.exifDate(await f.slice(0, 262144).arrayBuffer()); } catch (e) { t = null; }
-      dated.push({ f, t: t || f.lastModified || Date.now() });
+      dated.push({ f, t: t || f.lastModified || Date.now(), exif: !!t });
     }
     dated.sort((a, b) => a.t - b.t || a.f.name.localeCompare(b.f.name, 'fr', { numeric: true }));
-    const added = [];
+    const pool = info.camera ? null : await dupPool(zone.projectId);
+    const added = [], dups = [];
     let failed = 0, heic = 0;
     for (let i = 0; i < dated.length; i++) {
       busy(dated.length > 1 ? `Import ${i + 1} sur ${dated.length}…` : 'Enregistrement de la photo…');
-      try { added.push(await addPhoto(zone, dated[i].f, dated[i].t)); }
-      catch (e) {
+      try {
+        const res = await addPhoto(zone, dated[i].f, dated[i].t, { exif: dated[i].exif, pool });
+        if (res.dup) dups.push({ ...dated[i], match: res.dup, kind: res.kind }); else added.push(res);
+      } catch (e) {
         failed++;
         if (/\.hei[cf]$/i.test(dated[i].f.name) || /hei[cf]/i.test(dated[i].f.type || '')) heic++;
         console.error(e);
@@ -3293,9 +3545,20 @@ ${zonesHtml}
       }
     }
     busy(false);
+    let forced = 0;
+    if (dups.length) {
+      const force = await openDupImportSheet(dups, zone);
+      for (let i = 0; i < force.length; i++) {
+        busy(force.length > 1 ? `Ajout ${i + 1} sur ${force.length}…` : 'Enregistrement de la photo…');
+        try { added.push(await addPhoto(zone, force[i].f, force[i].t, { exif: force[i].exif })); forced++; } catch (e) { failed++; console.error(e); }
+      }
+      busy(false);
+      if (forced) added.sort(byTaken);
+    }
     if (added.length) requestPersistOnce();
     await render(true);
     const notes = [];
+    if (dups.length > forced) notes.push(plural(dups.length - forced, 'doublon ignoré', 'doublons ignorés'));
     if (info.skipped) notes.push(`${plural(info.skipped, 'fichier ignoré', 'fichiers ignorés')} (pas des images)`);
     if (heic) notes.push(`${plural(heic, 'photo HEIC illisible', 'photos HEIC illisibles')} par ce navigateur : convertis-les en JPEG`);
     if (failed > heic) notes.push(plural(failed - heic, 'image illisible', 'images illisibles'));
@@ -3308,6 +3571,125 @@ ${zonesHtml}
     else if (added.length) openPhotoSheet(added[0].id, { chain: { ids: added.map((x) => x.id), index: 0 } });
     if (notes.length) toast(notes.join(' · '), 6000);
     else if (!added.length) toast('Impossible de lire cette image. Essaie avec une photo JPEG.', 5000);
+  }
+
+  /* Photos écartées à l'import parce qu'elles sont déjà dans un audit. Renvoie celles à ajouter quand même. */
+  async function openDupImportSheet(dups, zone) {
+    const [projects, zones] = await Promise.all([S.store.all('projects'), S.store.all('zones')]);
+    const pname = new Map(projects.map((x) => [x.id, x.hotel || 'Audit']));
+    const zname = new Map(zones.map((z) => [z.id, z.name]));
+    const here = dups.filter((d) => d.match.projectId === zone.projectId).length;
+    const where = (m) => {
+      const z = m.zoneId ? `« ${esc(zname.get(m.zoneId) || 'zone supprimée')} »` : '« À trier »';
+      return m.projectId === zone.projectId ? `dans ${z}` : `dans l’audit « ${esc(pname.get(m.projectId) || 'Audit')} », ${z}`;
+    };
+    const n = dups.length;
+    const rows = dups.map((d, i) => `<label class="dup-row">
+        <img data-thumb="${d.match.id}" alt="">
+        <span class="dup-txt"><strong class="mono">${esc(d.f.name)}</strong>
+          <span class="small">Déjà ${where(d.match)} · <span class="mono">P${pad(d.match.num, 3)}</span>${d.match.label ? ` · ${esc(d.match.label)}` : ''}</span>
+          <span class="small dup-kind">${d.kind === 'file' ? 'Fichier identique' : 'Même prise de vue (copie recompressée ou convertie)'}</span></span>
+        <span class="dup-add"><input type="checkbox" data-i="${i}"><span>Ajouter</span></span></label>`).join('');
+    const body = `
+      <p class="lead">${n > 1 ? `${n} photos n’ont pas été ajoutées : elles sont déjà` : 'Cette photo n’a pas été ajoutée : elle est déjà'} dans tes audits.</p>
+      <p class="small">${[here ? `${here} dans cet audit` : '', n - here ? `${n - here} dans ${n - here > 1 ? 'd’autres audits' : 'un autre audit'}` : ''].filter(Boolean).join(' · ')}. Coche ${n > 1 ? 'celles' : 'la photo'} à ajouter quand même.</p>
+      ${n > 1 ? '<button type="button" class="btn link dup-all" data-local="all">Tout cocher</button>' : ''}
+      <div class="dup-list">${rows}</div>`;
+    const foot = '<button type="button" class="btn primary grow" data-local="ok">OK</button>';
+    return new Promise((resolve) => {
+      let result = [];
+      const sheet = openSheet({ title: 'Photos déjà présentes', body, foot, onClose: () => resolve(result) });
+      const el = sheet.el;
+      const boxes = () => $$('input[data-i]', el);
+      const sync = () => {
+        const k = boxes().filter((b) => b.checked).length;
+        $('[data-local="ok"]', el).textContent = k ? `Ajouter ${plural(k, 'photo', 'photos')}` : 'OK';
+        const all = $('[data-local="all"]', el);
+        if (all) all.textContent = k === n ? 'Tout décocher' : 'Tout cocher';
+      };
+      el.addEventListener('change', sync);
+      el.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-local]');
+        if (!b) return;
+        if (b.dataset.local === 'all') { const on = boxes().some((x) => !x.checked); boxes().forEach((x) => { x.checked = on; }); sync(); }
+        else if (b.dataset.local === 'ok') { result = dups.filter((_, i) => boxes()[i].checked); sheet.close(); }
+      });
+      hydrateThumbs(el);
+    });
+  }
+
+  /* Vérification des doublons d'un audit : une copie gardée par groupe, les autres supprimées. */
+  async function openDupReview(pid, opts = {}) {
+    busy('Recherche des doublons…');
+    let zones, groups;
+    try { [zones, groups] = await Promise.all([S.store.byIndex('zones', 'projectId', pid), findDupGroups(pid)]); } finally { busy(false); }
+    if (!groups.length) { toast('Aucun doublon dans cet audit'); return; }
+    const zname = new Map(zones.map((z) => [z.id, z.name]));
+    const keep = groups.map((g) => new Set([g.keep]));
+    const tile = (gi, x) => {
+      const k = keep[gi].has(x.id);
+      const qty = typeof x.qty === 'number' && x.qty > 0 ? ` ×${x.qty}` : '';
+      return `<button type="button" class="duptile${k ? ' keep' : ' drop'}" data-g="${gi}" data-id="${x.id}" aria-pressed="${k}">
+        <span class="dt-img"><img data-thumb="${x.id}" alt=""><span class="dt-state">${k ? `${icon('check')} Garder` : `${icon('trash')} Supprimer`}</span></span>
+        <span class="dt-num mono">P${pad(x.num, 3)}</span>
+        <span class="small">${esc(x.zoneId ? zname.get(x.zoneId) || 'Zone supprimée' : 'À trier')}</span>
+        <span class="small">${x.label ? `${esc(x.label)}${qty}` : 'Sans tag'}${(x.note || '').trim() ? ' · note' : ''}</span></button>`;
+    };
+    const group = (g, gi) => `<section class="dupg" data-g="${gi}">
+        <div class="dupg-h"><span class="small">${g.kind === 'file' ? 'Fichier identique' : 'Même prise de vue'} · ${esc(C.fmtDateTime(takenOf(g.photos[0])))}</span>
+          <button type="button" class="btn link" data-local="both" data-g="${gi}">${keep[gi].size === g.photos.length ? 'Choisir une copie' : 'Garder toutes'}</button></div>
+        <div class="dupg-row">${g.photos.map((x) => tile(gi, x)).join('')}</div></section>`;
+    const body = `
+      <p class="lead">${groups.length > 1 ? `${groups.length} photos ont` : 'Une photo a'} au moins un double dans l’audit. Touche la copie à garder : les autres seront supprimées${S.inFrame ? '' : ', y compris chez les collègues lors du prochain partage'}.</p>
+      <div class="dupg-list">${groups.map(group).join('')}</div>`;
+    const foot = '<button type="button" class="btn" data-sheet-dismiss>Fermer</button><button type="button" class="btn danger-fill grow" data-local="del"></button>';
+    let deleted = 0;
+    const sheet = openSheet({ title: 'Doublons', body, foot, full: true, cls: 'dups', onClose: () => { if (opts.onDone) opts.onDone(deleted); } });
+    const el = sheet.el;
+    const drops = () => groups.flatMap((g, gi) => g.photos.filter((x) => !keep[gi].has(x.id)).map((x) => x.id));
+    const sync = () => {
+      const n = drops().length;
+      const b = $('[data-local="del"]', el);
+      b.disabled = !n;
+      b.innerHTML = n ? `${icon('trash')} Supprimer ${plural(n, 'photo', 'photos')}` : 'Rien à supprimer';
+    };
+    const redraw = (gi) => {
+      const sec = $(`.dupg[data-g="${gi}"]`, el);
+      sec.outerHTML = group(groups[gi], gi);
+      hydrateThumbs($(`.dupg[data-g="${gi}"]`, el));
+      sync();
+    };
+    el.addEventListener('click', async (e) => {
+      const t = e.target.closest('.duptile');
+      if (t) { const gi = Number(t.dataset.g); keep[gi] = new Set([t.dataset.id]); redraw(gi); return; }
+      const b = e.target.closest('[data-local]');
+      if (!b) return;
+      if (b.dataset.local === 'both') {
+        const gi = Number(b.dataset.g);
+        keep[gi] = keep[gi].size === groups[gi].photos.length ? new Set([groups[gi].keep]) : new Set(groups[gi].photos.map((x) => x.id));
+        redraw(gi);
+      } else if (b.dataset.local === 'del' && !b.disabled) {
+        const ids = drops();
+        if (!ids.length) return;
+        b.disabled = true;
+        await deletePhotos(ids, pid);
+        deleted = ids.length;
+        await sheet.close();
+        await render(true);
+        toast(`${plural(ids.length, 'doublon supprimé', 'doublons supprimés')}`);
+      }
+    });
+    sync();
+    hydrateThumbs(el);
+  }
+  async function showDupPill(pid, photos) {
+    const token = S.renderToken;
+    let groups = [];
+    try { groups = await findDupGroups(pid, photos); } catch (e) { return; }
+    const extra = C.dupExtra(groups);
+    const pills = $('.pj-head .pills');
+    if (!extra || token !== S.renderToken || !pills || $('.pill.dup', pills)) return;
+    pills.insertAdjacentHTML('beforeend', `<button type="button" class="pill dup" data-act="dups">${icon('copy')}${plural(extra, 'doublon', 'doublons')}</button>`);
   }
 
   /* ---------- Glisser-déposer de photos (ordinateur, tablette) ---------- */
@@ -3420,6 +3802,7 @@ ${zonesHtml}
     },
     'dismiss-install': async () => { S.settings.installDismissed = true; await saveSettings(); render(true); },
     'open-inbox': () => go({ name: 'inbox', id: current().id }),
+    dups: () => openDupReview(current().id),
     'sort-one': () => openSortSheet(current().id),
     'sel-toggle': (el, e) => {
       const id = el.dataset.id;
