@@ -491,6 +491,84 @@ li:first-child > .tag-opt { border-top: 0; }
   .sheet.photo .chips.scroll { flex-wrap: wrap; overflow: visible; margin: 0; padding: 2px 0 4px; }
 }
 
+/* ---------- À trier ---------- */
+.inbox {
+  display: grid; gap: 12px; padding: 14px;
+  border: 1.5px dashed var(--line); border-radius: var(--radius); background: var(--surface);
+}
+.inbox.has { border: 1.5px solid color-mix(in srgb, var(--warn) 50%, var(--line)); background: var(--warn-soft); }
+.inbox.drop-hover { border: 2px dashed var(--accent); background: var(--accent-soft); }
+.inbox-head { display: flex; align-items: center; gap: 12px; }
+.inbox-head > div { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.inbox-ic { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: 12px; background: var(--surface); color: var(--warn); }
+.inbox:not(.has) .inbox-ic { background: var(--bg); color: var(--muted); }
+.inbox-strip { display: flex; gap: 4px; overflow: hidden; }
+.inbox-strip img { flex: none; width: 46px; height: 46px; border-radius: 7px; object-fit: cover; background: var(--line); }
+.inbox-more { display: grid; place-items: center; min-width: 46px; height: 46px; padding: 0 6px; border-radius: 7px; background: var(--surface); color: var(--muted); font: 500 12px/1 var(--font-mono); }
+.inbox-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.acard.drop-hover { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* Sélection par moments de la visite */
+.tgroup { display: grid; gap: 10px; }
+.tgroup-h { display: flex; align-items: baseline; gap: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.tgroup-h .mono { font-size: 14px; }
+.tgroup-h .btn { margin-left: auto; }
+.seltile { -webkit-user-select: none; user-select: none; }
+.selmark {
+  position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 26px; height: 26px;
+  border: 2px solid #fff; border-radius: 50%; background: rgba(10, 14, 22, .35); color: transparent;
+}
+.selmark .ic { width: 16px; height: 16px; }
+.seltile[aria-pressed="true"] .selmark { background: var(--accent); border-color: var(--accent); color: #fff; }
+.seltile[aria-pressed="true"] .pimg { outline: 3px solid var(--accent); outline-offset: -3px; }
+
+/* Tri une par une */
+.sort-media { display: grid; gap: 10px; min-width: 0; }
+.sheet.sort .preview { height: clamp(200px, 40vh, 460px); }
+.strip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.strip-item {
+  position: relative; flex: none; width: 68px; height: 50px; padding: 0; overflow: hidden;
+  border: 2px solid transparent; border-radius: 8px; background: var(--line); opacity: .7;
+}
+.strip-item.current { border-color: var(--accent); opacity: 1; }
+.strip-item img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.strip-z { position: absolute; left: 3px; bottom: 3px; padding: 1px 4px; border-radius: 4px; background: rgba(10, 14, 22, .78); color: #fff; font-size: 10px; }
+.sort-panel { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.sort-panel:focus { outline: none; }
+.sort-zones { display: grid; gap: 8px; }
+.sort-zone {
+  display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 10px;
+  width: 100%; min-height: 52px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface); color: var(--ink); font-size: 16px; font-weight: 600; text-align: left;
+}
+.sort-zone .sz-name { overflow-wrap: anywhere; }
+.sort-zone kbd, .sort-same kbd {
+  display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 5px;
+  border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--muted); font: 500 12px/1 var(--font-mono);
+}
+.sort-zone[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.sort-zone.add { color: var(--accent); }
+.sort-zone:active { background: var(--accent-soft); }
+.sort-same { justify-content: flex-start; min-height: 52px; text-align: left; }
+.sort-same kbd { margin-left: auto; }
+@media (min-width: 900px) {
+  .sheet.sort { max-width: 1120px; }
+  .sheet.sort .sheet-body { grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); column-gap: 26px; align-items: start; }
+  .sheet.sort .sort-media { position: sticky; top: 0; }
+  .sheet.sort .preview { height: min(62vh, 640px); }
+}
+/* Écran étroit (téléphone, tablette en portrait) : zones en pastilles pour garder la photo visible */
+@media (max-width: 899px) {
+  .sheet.sort .sort-zones { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sheet.sort .sort-zone { display: inline-flex; gap: 8px; width: auto; max-width: 100%; min-height: 46px; padding: 6px 16px; border-radius: 23px; font-size: 15px; }
+  .sheet.sort .sort-zone .small { display: none; }
+}
+/* Écran tactile : pas de touches clavier affichées */
+@media (max-width: 899px) and (pointer: coarse) {
+  .sort-zone { grid-template-columns: 1fr auto; }
+  .sort-zone kbd { display: none; }
+}
+
 /* ---------- Glisser-déposer ---------- */
 .dropui { position: fixed; left: 50%; top: calc(var(--safe-top) + 76px); z-index: 60; transform: translateX(-50%); pointer-events: none; }
 .dropui.full {
@@ -729,7 +807,7 @@ li:first-child > .tag-opt { border-top: 0; }
     const known = new Set(zs.map((z) => z.id));
     const groups = zs.map((z) => ({ zone: z, photos: photos.filter((p) => p.zoneId === z.id) }));
     const orphans = photos.filter((p) => !known.has(p.zoneId));
-    if (orphans.length) groups.push({ zone: { id: '', name: 'Sans zone', notes: '' }, photos: orphans });
+    if (orphans.length) groups.push({ zone: { id: '', name: 'À trier', notes: '' }, photos: orphans });
 
     const plan = { root, zones: [], items: [] };
     const used = new Set();
@@ -1208,7 +1286,7 @@ ${zonesHtml}
   const esc = C.esc;
   const pad = C.pad;
 
-  const VERSION = '0.4';
+  const VERSION = '0.5';
   const QUALITY = {
     opt: { max: 1600, q: 0.82, label: 'Optimisée', hint: '1600 px, environ 0,3 Mo par photo' },
     std: { max: 2560, q: 0.85, label: 'Standard', hint: '2560 px, environ 0,7 Mo par photo' },
@@ -1238,6 +1316,7 @@ ${zonesHtml}
     zoom: '<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5M11 8v6M8 11h6"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
     folder: '<path d="M3 7a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7z"/>',
+    inbox: '<path d="M4 13h4l2 3h4l2-3h4"/><path d="M4 13l2.2-7.3A1 1 0 0 1 7.2 5h9.6a1 1 0 0 1 1 .7L20 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
     tag: '<path d="M3 12.5V4a1 1 0 0 1 1-1h8.5L21 11.5 12.5 20z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
     note: '<path d="M5 4h14v11l-5 5H5z"/><path d="M14 20v-5h5M8 9h8M8 13h4"/>',
@@ -1262,6 +1341,10 @@ ${zonesHtml}
   const errMsg = (e) => (e && (e.message || e.name)) || 'erreur inconnue';
   const FINE = () => { try { return window.matchMedia('(pointer: fine)').matches; } catch (e) { return false; } };
   const WIDE = () => window.innerWidth >= 768;
+  const takenOf = (x) => x.takenAt || x.createdAt || 0;
+  const byTaken = (a, b) => takenOf(a) - takenOf(b) || (a.num || 0) - (b.num || 0);
+  const hhmm = (ts) => { const d = new Date(ts); return `${pad(d.getHours(), 2)}:${pad(d.getMinutes(), 2)}`; };
+  const INBOX = (projectId) => `inbox:${projectId}`;
   const tick = () => new Promise((r) => setTimeout(r, 0));
   function blobToBuf(b) {
     if (b.arrayBuffer) return b.arrayBuffer();
@@ -1348,6 +1431,10 @@ ${zonesHtml}
     inFrame: (() => { try { return window.self !== window.top; } catch (e) { return true; } })(),
     settings: { auditor: '', quality: 'std', hintDismissed: false, seeded: false, installDismissed: false },
     tagMeta: { custom: [], hidden: [] },
+    sel: new Set(),
+    selLast: -1,
+    inboxOrder: [],
+    inboxGroups: [],
     nav: [{ name: 'home' }],
     useHistory: false,
     organize: false,
@@ -1781,6 +1868,7 @@ ${zonesHtml}
   const current = () => S.nav[S.nav.length - 1];
   function go(route) {
     S.organize = false;
+    S.sel.clear(); S.selLast = -1;
     S.nav.push(route);
     if (S.useHistory) { try { history.pushState({ depth: S.nav.length - 1 }, ''); } catch (e) { S.useHistory = false; } }
     render().then(() => window.scrollTo(0, 0));
@@ -1788,7 +1876,7 @@ ${zonesHtml}
   function back() {
     if (S.nav.length <= 1) return;
     if (S.useHistory) { history.back(); return; }
-    S.nav.pop(); S.organize = false; render();
+    S.nav.pop(); S.organize = false; S.sel.clear(); S.selLast = -1; render();
   }
   function setupHistory() {
     if (S.inFrame || !window.history || !history.pushState) return;
@@ -1805,9 +1893,10 @@ ${zonesHtml}
 
   /* ---------- Rendu ---------- */
   function summarize(photos) {
-    const s = { photos: photos.length, todo: 0, bytes: 0 };
+    const s = { photos: photos.length, todo: 0, unsorted: 0, bytes: 0 };
     for (const p of photos) {
-      if (!p.label) s.todo++;
+      if (!p.zoneId) s.unsorted++;
+      else if (!p.label) s.todo++;
       s.bytes += p.size || 0;
     }
     return s;
@@ -1817,6 +1906,7 @@ ${zonesHtml}
     const out = [];
     if (zones !== undefined) out.push(pill(plural(zones, 'zone', 'zones')));
     out.push(pill(plural(s.photos, 'photo', 'photos')));
+    if (s.unsorted) out.push(pill(`${s.unsorted} à trier`, 'todo'));
     if (s.todo) out.push(pill(`${s.todo} à taguer`, 'todo'));
     return `<div class="pills">${out.join('')}</div>`;
   }
@@ -1842,6 +1932,7 @@ ${zonesHtml}
       if (r.name === 'home') out = await viewHome();
       else if (r.name === 'project') out = await viewProject(r.id);
       else if (r.name === 'zone') out = await viewZone(r.id);
+      else if (r.name === 'inbox') out = await viewInbox(r.id);
     } catch (e) {
       console.error(e);
       out = { top: topbar({ title: 'Carnet d’audit' }), html: `<div class="banner bad">${icon('info')}<span>Affichage impossible : ${esc(errMsg(e))}</span></div>`, actions: '' };
@@ -1852,6 +1943,7 @@ ${zonesHtml}
     $('#view').innerHTML = out.html;
     $('#actionbar').innerHTML = out.actions;
     $$('textarea[data-autogrow]', $('#view')).forEach(autoGrow);
+    if (out.after) out.after();
     if (keepScroll) window.scrollTo(0, y);
     await hydrateThumbs($('#view'));
   }
@@ -1916,6 +2008,7 @@ ${zonesHtml}
         <label for="pj-gnotes">${icon('note')} Notes générales de l’hôtel</label>
         <textarea id="pj-gnotes" class="input" rows="2" data-notes="project" data-id="${p.id}" data-autogrow placeholder="Points qui ne concernent pas une zone précise : contexte, interlocuteurs, remarques transverses…">${esc(p.notes || '')}</textarea>
         <span class="small">Enregistrement automatique</span></section>`;
+    html += inboxCard(p, photos);
     html += `<div class="sec-h"><h2>Zones · ${zones.length}</h2>${zones.length > 1 ? `<button type="button" class="btn link" data-act="toggle-organize" aria-pressed="${S.organize}">${S.organize ? 'Terminé' : 'Organiser'}</button>` : ''}</div>`;
     if (zones.length) {
       html += `<div class="panel">${zones.map((z, i) => {
@@ -1933,11 +2026,83 @@ ${zonesHtml}
     } else {
       html += `<div class="empty">${icon('folder')}<strong>Aucune zone</strong><span>Ajoute les endroits que tu vas visiter : local technique, réception, étages…</span></div>`;
     }
-    if (zones.length && WIDE()) html += `<p class="footnote">${icon('image')}<span>Astuce : glisse des photos (ou un dossier) depuis ton ordinateur sur une zone pour les y importer.</span></p>`;
+    if (zones.length && WIDE()) html += `<p class="footnote">${icon('image')}<span>Astuce : glisse des photos (ou un dossier) depuis ton ordinateur sur une zone pour les y ranger, ou n’importe où ailleurs sur cet écran pour les mettre « À trier ».</span></p>`;
     S.flashZone = null;
     const actions = `<button type="button" class="btn" data-act="add-zone">${icon('plus')} Zone</button>
       <button type="button" class="btn primary grow" data-act="export"${photos.length ? '' : ' disabled'}>${icon('share')} Exporter / partager</button>`;
     return { top, html, actions };
+  }
+
+  /* ---------- « À trier » : encadré de l'audit et écran de sélection ---------- */
+  function inboxCard(p, photos) {
+    const list = photos.filter((x) => !x.zoneId).sort(byTaken);
+    if (list.length) {
+      return `<section class="inbox has">
+        <div class="inbox-head"><span class="inbox-ic">${icon('inbox')}</span>
+          <div><strong>À trier · ${plural(list.length, 'photo', 'photos')}</strong><span class="small">Répartis-les dans les zones, puis tague-les zone par zone.</span></div></div>
+        <div class="inbox-strip">${list.slice(0, 8).map((x) => `<img data-thumb="${x.id}" alt="">`).join('')}${list.length > 8 ? `<span class="inbox-more">+${list.length - 8}</span>` : ''}</div>
+        <div class="inbox-actions"><button type="button" class="btn primary sm" data-act="sort-one">${icon('tag')} Trier une par une</button>
+          <button type="button" class="btn sm" data-act="open-inbox">Sélection multiple</button></div></section>`;
+    }
+    return `<section class="inbox"><div class="inbox-head"><span class="inbox-ic">${icon('inbox')}</span>
+      <div><strong>Photos à trier</strong><span class="small">${WIDE() ? 'Glisse ici toutes les photos de la visite, puis répartis-les dans les zones.' : 'Importe toutes les photos de la visite, puis répartis-les dans les zones.'}</span></div>
+      <label class="btn sm" for="in-gallery" data-capture="${INBOX(p.id)}" role="button" tabindex="0">${icon('image')} Importer</label></div></section>`;
+  }
+
+  /* Moments de la visite : photos séparées de moins de 3 minutes. */
+  function timeGroups(list, gap) {
+    const out = [];
+    for (const x of list) {
+      const t = takenOf(x);
+      const g = out[out.length - 1];
+      if (g && t - g.end <= gap) { g.items.push(x); g.end = t; } else out.push({ start: t, end: t, items: [x] });
+    }
+    return out;
+  }
+
+  function inboxActions(pid, count) {
+    const n = S.sel.size;
+    return n
+      ? `<button type="button" class="btn" data-act="sel-clear">Annuler</button><button type="button" class="btn primary grow" data-act="sel-move">${icon('folder')} Déplacer ${n} vers…</button>`
+      : `<label class="btn" for="in-gallery" data-capture="${INBOX(pid)}" role="button" tabindex="0">${icon('image')} Importer</label><button type="button" class="btn primary grow" data-act="sort-one"${count ? '' : ' disabled'}>${icon('tag')} Trier une par une</button>`;
+  }
+
+  async function viewInbox(pid) {
+    const p = await S.store.get('projects', pid);
+    if (!p) return null;
+    const list = (await S.store.byIndex('photos', 'projectId', pid)).filter((x) => !x.zoneId).sort(byTaken);
+    const present = new Set(list.map((x) => x.id));
+    for (const id of [...S.sel]) if (!present.has(id)) S.sel.delete(id);
+    const groups = timeGroups(list, 3 * 60000);
+    S.inboxOrder = list.map((x) => x.id);
+    S.inboxGroups = groups.map((g) => g.items.map((x) => x.id));
+    const top = topbar({ back: true, title: 'À trier', sub: esc(p.hotel), right: list.length ? '<button type="button" class="btn link" data-act="sel-all" id="sel-all">Tout sélectionner</button>' : '' });
+    let html;
+    if (!list.length) {
+      html = `<div class="empty">${icon('check')}<strong>Tout est trié</strong><span>Toutes les photos de l’audit sont dans une zone.${WIDE() ? ' Tu peux en déposer d’autres ici.' : ''}</span></div>`;
+    } else {
+      html = `<p class="lead">Sélectionne des photos, ou tout un moment de la visite, puis choisis leur zone.${FINE() ? ' Maj+clic pour une plage, touches 1 à 9 pour envoyer la sélection dans une zone.' : ''}</p>`;
+      html += groups.map((g, gi) => `<section class="tgroup">
+        <div class="tgroup-h"><span class="mono">${hhmm(g.start)}${hhmm(g.end) !== hhmm(g.start) ? ` → ${hhmm(g.end)}` : ''}</span><span class="small">${plural(g.items.length, 'photo', 'photos')}</span>
+          <button type="button" class="btn link" data-act="sel-group" data-g="${gi}">Sélectionner</button></div>
+        <div class="pgrid">${g.items.map((x) => `<button type="button" class="ptile seltile" data-act="sel-toggle" data-id="${x.id}" aria-pressed="false">
+          <span class="pimg"><img data-thumb="${x.id}" alt=""><span class="pnum">P${pad(x.num, 3)}</span><span class="selmark">${icon('check')}</span></span>
+          <span class="pmeta mono">${hhmm(takenOf(x))}</span></button>`).join('')}</div></section>`).join('');
+    }
+    return { top, html, actions: inboxActions(pid, list.length), after: updSel };
+  }
+
+  function updSel() {
+    const r = current();
+    if (r.name !== 'inbox') return;
+    $$('.seltile').forEach((t) => t.setAttribute('aria-pressed', String(S.sel.has(t.dataset.id))));
+    $$('[data-act="sel-group"]').forEach((b) => {
+      const ids = S.inboxGroups[Number(b.dataset.g)] || [];
+      b.textContent = ids.length && ids.every((id) => S.sel.has(id)) ? 'Désélectionner' : 'Sélectionner';
+    });
+    const all = $('#sel-all');
+    if (all) all.textContent = S.sel.size && S.sel.size === S.inboxOrder.length ? 'Tout désélectionner' : 'Tout sélectionner';
+    $('#actionbar').innerHTML = inboxActions(r.id, S.inboxOrder.length);
   }
 
   async function viewZone(id) {
@@ -2051,7 +2216,7 @@ ${zonesHtml}
       S.store.get('files', photoId),
     ]);
     const zones = C.sortZones(zonesRaw);
-    const zoneName = (id) => (zones.find((z) => z.id === id) || {}).name || '';
+    const zoneName = (id) => (id ? (zones.find((z) => z.id === id) || {}).name || '' : 'À trier');
     const fullUrl = fileRec && fileRec.buf ? URL.createObjectURL(new Blob([fileRec.buf], { type: fileRec.type || 'image/jpeg' })) : '';
     const usage = C.tagUsage(everyPhoto);
     const quick = quickTags(projectPhotos, everyPhoto, ph.id);
@@ -2086,7 +2251,7 @@ ${zonesHtml}
       </div>
       <div class="field">
         <label for="f-zone">Zone</label>
-        <select id="f-zone" class="input">${zones.map((z, i) => `<option value="${z.id}"${z.id === st.zoneId ? ' selected' : ''}>Z${pad(i + 1, 2)} · ${esc(z.name)}</option>`).join('')}</select>
+        <select id="f-zone" class="input"><option value=""${st.zoneId ? '' : ' selected'}>À trier</option>${zones.map((z, i) => `<option value="${z.id}"${z.id === st.zoneId ? ' selected' : ''}>Z${pad(i + 1, 2)} · ${esc(z.name)}</option>`).join('')}</select>
       </div>
       <p class="meta-line">Prise le ${esc(C.fmtDateTime(ph.takenAt || ph.createdAt))}${ph.w ? ` · ${ph.w} × ${ph.h} px` : ''} · ${fmtSize(ph.size)}</p>
       ${chain && FINE() ? '<p class="meta-line kbd-hint">Clavier : tape le tag puis Entrée, la quantité puis Entrée pour passer à la photo suivante. ← et → pour naviguer.</p>' : ''}`;
@@ -2382,7 +2547,7 @@ ${zonesHtml}
     });
   }
 
-  async function openZoneSheet(projectId, zone, { first = false } = {}) {
+  async function openZoneSheet(projectId, zone, { first = false, onCreated = null } = {}) {
     const isNew = !zone;
     const existing = await S.store.byIndex('zones', 'projectId', projectId);
     const body = `<form id="zn-form" class="form" novalidate>
@@ -2392,7 +2557,7 @@ ${zonesHtml}
       ${isNew ? '' : `<button type="button" class="btn danger" data-local="delete-zone">${icon('trash')} Supprimer cette zone</button>`}
     </form>`;
     const foot = `<button type="button" class="btn" data-sheet-dismiss>${first ? 'Plus tard' : 'Annuler'}</button><button type="submit" form="zn-form" class="btn primary" id="zn-submit">${isNew ? 'Ajouter la zone' : 'Renommer'}</button>`;
-    const sheet = openSheet({ title: isNew ? 'Nouvelle zone' : 'Modifier la zone', body, foot });
+    const sheet = openSheet({ title: isNew ? 'Nouvelle zone' : 'Modifier la zone', body, foot, focusSel: FINE() ? '#zn-name' : null });
     const form = $('#zn-form', sheet.el);
     const input = $('#zn-name', form);
     sheet.el.addEventListener('click', async (e) => {
@@ -2430,6 +2595,7 @@ ${zonesHtml}
           await sheet.close();
           await render(true);
           toast(`Zone « ${name} » ajoutée`);
+          if (onCreated) await onCreated(nz);
         } else {
           const cur = await S.store.get('zones', zone.id);
           cur.name = name;
@@ -2453,6 +2619,221 @@ ${zonesHtml}
     await render(true);
     const btn = $(`[data-act="${dir < 0 ? 'zone-up' : 'zone-down'}"][data-id="${zoneId}"]`);
     if (btn && !btn.disabled) btn.focus({ preventScroll: true });
+  }
+
+  /* ---------- Répartir les photos dans les zones ---------- */
+  const isGeneral = (z) => C.normTag(z.name) === 'general';
+  function zoneButtons(zones, cur, counts) {
+    return zones.map((z, k) => `<button type="button" class="sort-zone" data-zone="${z.id}" aria-pressed="${z.id === cur}"><kbd>${k < 9 ? k + 1 : '·'}</kbd><span class="sz-name">${esc(z.name)}</span>${counts ? `<span class="small">${counts.get(z.id) || 0}</span>` : ''}</button>`).join('')
+      + (zones.some(isGeneral) ? '' : '<button type="button" class="sort-zone" data-local="general"><kbd>G</kbd><span class="sz-name">Général</span><span class="small">nouvelle zone</span></button>')
+      + '<button type="button" class="sort-zone add" data-local="newzone"><kbd>N</kbd><span class="sz-name">Nouvelle zone…</span></button>';
+  }
+  async function createZone(projectId, name) {
+    const existing = await S.store.byIndex('zones', 'projectId', projectId);
+    const order = existing.reduce((m, z) => Math.max(m, z.order || 0), -1) + 1;
+    const t = Date.now();
+    const nz = { id: uid(), projectId, name, notes: '', order, createdAt: t, updatedAt: t, notesAt: 0 };
+    await S.store.put('zones', nz);
+    return nz;
+  }
+  async function ensureGeneralZone(projectId) {
+    const zs = await S.store.byIndex('zones', 'projectId', projectId);
+    return zs.find(isGeneral) || createZone(projectId, 'Général');
+  }
+  async function movePhotos(ids, zoneId) {
+    const now = Date.now();
+    const recs = (await Promise.all(ids.map((id) => S.store.get('photos', id)))).filter(Boolean);
+    await S.store.batch(recs.map((r) => ({ store: 'photos', type: 'put', value: { ...r, zoneId, updatedAt: now } })));
+  }
+  async function moveSelection(zoneId = null) {
+    const ids = S.inboxOrder.filter((id) => S.sel.has(id));
+    if (!ids.length) return;
+    const doMove = async (zid) => {
+      await movePhotos(ids, zid);
+      const z = await S.store.get('zones', zid);
+      S.sel.clear();
+      S.selLast = -1;
+      await render(true);
+      toast(`${plural(ids.length, 'photo déplacée', 'photos déplacées')} vers « ${z ? z.name : 'la zone'} »`);
+    };
+    if (zoneId) return doMove(zoneId);
+    openZonePicker(current().id, ids.length, doMove);
+  }
+  async function moveSelectionToIndex(k) {
+    const zs = C.sortZones(await S.store.byIndex('zones', 'projectId', current().id));
+    if (zs[k]) moveSelection(zs[k].id);
+  }
+
+  /* Choix d'une zone pour une sélection (souris, toucher ou touches 1-9, G, N). */
+  async function openZonePicker(pid, count, onPick) {
+    const zones = C.sortZones(await S.store.byIndex('zones', 'projectId', pid));
+    let done = false;
+    const sheet = openSheet({
+      title: 'Choisir la zone',
+      body: `<p class="lead">Déplacer ${plural(count, 'photo', 'photos')} vers :</p><div class="sort-zones">${zoneButtons(zones, null, null)}</div>`,
+      onClose: () => document.removeEventListener('keydown', onKey),
+    });
+    async function pick(zid) { if (done || !zid) return; done = true; await sheet.close(); onPick(zid); }
+    async function general() { const g = await ensureGeneralZone(pid); pick(g.id); }
+    function newZone() { openZoneSheet(pid, null, { onCreated: (nz) => pick(nz.id) }); }
+    function onKey(e) {
+      if (S.sheets[S.sheets.length - 1] !== sheet) return;
+      if (e.target && e.target.matches && e.target.matches('input, textarea, select')) return;
+      if (/^[1-9]$/.test(e.key) && zones[Number(e.key) - 1]) { e.preventDefault(); pick(zones[Number(e.key) - 1].id); }
+      else if (e.key === 'g' || e.key === 'G') { e.preventDefault(); general(); }
+      else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); newZone(); }
+    }
+    document.addEventListener('keydown', onKey);
+    sheet.el.addEventListener('click', (e) => {
+      const z = e.target.closest('[data-zone]');
+      if (z) { pick(z.dataset.zone); return; }
+      if (e.target.closest('[data-local="general"]')) general();
+      else if (e.target.closest('[data-local="newzone"]')) newZone();
+    });
+  }
+
+  /* Tri une par une : la photo en grand, un bouton (ou une touche) par zone, passage automatique à la suivante. */
+  async function openSortSheet(pid) {
+    const all = await S.store.byIndex('photos', 'projectId', pid);
+    const ids = all.filter((x) => !x.zoneId).sort(byTaken).map((x) => x.id);
+    if (!ids.length) { toast('Aucune photo à trier'); return; }
+    const meta = new Map(all.map((x) => [x.id, x]));
+    let zones = C.sortZones(await S.store.byIndex('zones', 'projectId', pid));
+    let index = 0, lastZone = null, working = false, curUrl = '', pre = null;
+    const body = `
+      <div class="sort-media">
+        <button type="button" class="preview" data-local="zoom" aria-label="Agrandir la photo"><img id="so-img" alt=""><span class="preview-zoom">${icon('zoom')}</span></button>
+        <div class="strip" id="so-strip"></div>
+      </div>
+      <div class="sort-panel" tabindex="-1">
+        <p class="meta-line" id="so-meta"></p>
+        <button type="button" class="btn soft sort-same" data-local="same" id="so-same" hidden></button>
+        <div class="sort-zones" id="so-zones" role="group" aria-label="Zone de destination"></div>
+        ${FINE() ? '<p class="meta-line kbd-hint">Clavier : 1 à 9 pour la zone, Entrée pour la même zone que la photo précédente, G pour Général, N pour une nouvelle zone, ← → pour naviguer.</p>' : ''}
+      </div>`;
+    const foot = `<button type="button" class="btn" data-local="prev">${icon('back')} Précédente</button><button type="button" class="btn" data-local="skip">Passer ${icon('chevron')}</button>`;
+    const headExtra = `<span class="chain-pos mono" id="so-pos"></span><button type="button" class="icon-btn danger" data-local="delete" aria-label="Supprimer la photo">${icon('trash')}</button>`;
+    const sheet = openSheet({
+      title: 'Trier les photos', body, foot, headExtra, full: true, cls: 'sort', focusSel: '.sort-panel',
+      onClose: () => {
+        document.removeEventListener('keydown', onKey);
+        if (curUrl) URL.revokeObjectURL(curUrl);
+        if (pre && pre.url) URL.revokeObjectURL(pre.url);
+        render(true);
+      },
+    });
+    const el = sheet.el;
+    const img = $('#so-img', el), metaEl = $('#so-meta', el), zonesEl = $('#so-zones', el), sameBtn = $('#so-same', el), strip = $('#so-strip', el), pos = $('#so-pos', el);
+    const nameOf = (zid) => (zones.find((z) => z.id === zid) || {}).name || '';
+    const counts = () => { const m = new Map(); for (const x of meta.values()) if (x.zoneId) m.set(x.zoneId, (m.get(x.zoneId) || 0) + 1); return m; };
+    async function urlFor(id) {
+      const rec = await S.store.get('files', id);
+      return rec && rec.buf ? URL.createObjectURL(new Blob([rec.buf], { type: rec.type || 'image/jpeg' })) : '';
+    }
+    function draw() {
+      const p = meta.get(ids[index]);
+      pos.textContent = `${index + 1}/${ids.length}`;
+      metaEl.textContent = `P${pad(p.num, 3)} · prise le ${C.fmtDateTime(takenOf(p))}${p.zoneId ? ` · dans « ${nameOf(p.zoneId)} »` : ''}`;
+      zonesEl.innerHTML = zoneButtons(zones, p.zoneId, counts());
+      const same = lastZone && zones.some((z) => z.id === lastZone) ? lastZone : null;
+      sameBtn.hidden = !same;
+      if (same) sameBtn.innerHTML = `${icon('check')}<span>Comme la précédente : ${esc(nameOf(same))}</span>${FINE() ? '<kbd>Entrée</kbd>' : ''}`;
+      const from = Math.max(0, index - 2), to = Math.min(ids.length, index + 5);
+      strip.innerHTML = ids.slice(from, to).map((id, k) => {
+        const x = meta.get(id);
+        const zi = zones.findIndex((z) => z.id === x.zoneId);
+        return `<button type="button" class="strip-item${from + k === index ? ' current' : ''}" data-jump="${from + k}" aria-label="Photo ${from + k + 1}"><img data-thumb="${id}" alt="">${zi >= 0 ? `<span class="strip-z mono">Z${pad(zi + 1, 2)}</span>` : ''}</button>`;
+      }).join('');
+      hydrateThumbs(strip);
+    }
+    async function show(i) {
+      index = i;
+      const id = ids[i];
+      const old = curUrl;
+      if (pre && pre.id === id) { curUrl = pre.url; pre = null; }
+      else { if (pre && pre.url) URL.revokeObjectURL(pre.url); pre = null; curUrl = await urlFor(id); }
+      img.src = curUrl;
+      if (old && old !== curUrl) URL.revokeObjectURL(old);
+      draw();
+      if (i + 1 < ids.length) {
+        const nid = ids[i + 1];
+        urlFor(nid).then((u) => { if (index === i && !pre) pre = { id: nid, url: u }; else if (u) URL.revokeObjectURL(u); });
+      }
+    }
+    async function finish() {
+      const left = ids.filter((id) => meta.has(id) && !meta.get(id).zoneId).length;
+      await sheet.close();
+      toast(left ? `Tri terminé · ${plural(left, 'photo reste', 'photos restent')} à trier` : 'Tri terminé : toutes les photos sont dans une zone');
+    }
+    async function assign(zid) {
+      if (working || !zid) return;
+      working = true;
+      try {
+        const id = ids[index];
+        const cur = await S.store.get('photos', id);
+        if (cur) { cur.zoneId = zid; cur.updatedAt = Date.now(); await S.store.put('photos', cur); meta.set(id, cur); }
+        lastZone = zid;
+        if (index + 1 < ids.length) await show(index + 1); else await finish();
+      } finally { working = false; }
+    }
+    const skip = () => (index + 1 < ids.length ? show(index + 1) : finish());
+    const prev = () => (index > 0 ? show(index - 1) : null);
+    async function general() {
+      const g = await ensureGeneralZone(pid);
+      if (!zones.some((z) => z.id === g.id)) zones = C.sortZones([...zones, g]);
+      assign(g.id);
+    }
+    function newZone() { openZoneSheet(pid, null, { onCreated: (nz) => { zones = C.sortZones([...zones, nz]); return assign(nz.id); } }); }
+    async function del() {
+      const id = ids[index];
+      const ok = await confirmBox(`Supprimer la photo P${pad(meta.get(id).num, 3)} ? Elle sera effacée de cet appareil.`, { ok: 'Supprimer' });
+      if (!ok) return;
+      await deletePhotos([id], pid);
+      ids.splice(index, 1);
+      meta.delete(id);
+      toast('Photo supprimée');
+      if (!ids.length) { await sheet.close(); return; }
+      await show(Math.min(index, ids.length - 1));
+    }
+    function onKey(e) {
+      if (S.sheets[S.sheets.length - 1] !== sheet) return;
+      const t = e.target;
+      if (t && t.matches && t.matches('input, textarea, select')) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const k = e.key;
+      if (/^[1-9]$/.test(k)) { const z = zones[Number(k) - 1]; if (z) { e.preventDefault(); assign(z.id); } }
+      else if (k === 'Enter' || k === ' ') { if (lastZone && !(t && t.matches && t.matches('button, label, a'))) { e.preventDefault(); assign(lastZone); } }
+      else if (k === 'ArrowRight') { e.preventDefault(); skip(); }
+      else if (k === 'ArrowLeft') { e.preventDefault(); prev(); }
+      else if (k === 'g' || k === 'G') { e.preventDefault(); general(); }
+      else if (k === 'n' || k === 'N') { e.preventDefault(); newZone(); }
+      else if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); del(); }
+    }
+    document.addEventListener('keydown', onKey);
+    el.addEventListener('click', (e) => {
+      const z = e.target.closest('[data-zone]');
+      if (z) { assign(z.dataset.zone); return; }
+      const j = e.target.closest('[data-jump]');
+      if (j) { show(Number(j.dataset.jump)); return; }
+      const b = e.target.closest('[data-local]');
+      if (!b) return;
+      const a = b.dataset.local;
+      if (a === 'same') assign(lastZone);
+      else if (a === 'general') general();
+      else if (a === 'newzone') newZone();
+      else if (a === 'skip') skip();
+      else if (a === 'prev') prev();
+      else if (a === 'delete') del();
+      else if (a === 'zoom' && curUrl) openViewer(curUrl);
+    });
+    await show(0);
+  }
+
+  function exportWarnings(photos) {
+    const unsorted = photos.filter((x) => !x.zoneId).length;
+    const untagged = photos.filter((x) => !x.label).length;
+    return (unsorted ? `<div class="banner">${icon('inbox')}<span>${plural(unsorted, 'photo n’est pas triée', 'photos ne sont pas triées')} : ${unsorted > 1 ? 'elles seront' : 'elle sera'} dans le dossier « A-trier ».</span></div>` : '')
+      + (untagged ? `<div class="banner">${icon('info')}<span>${plural(untagged, 'photo n’a pas de tag', 'photos n’ont pas de tag')} : ${untagged > 1 ? 'elles seront nommées' : 'elle sera nommée'} « sans-tag ».</span></div>` : '');
   }
 
   /* ---------- Export ---------- */
@@ -2511,7 +2892,7 @@ ${zonesHtml}
       <p class="lead">Un dossier par zone avec ses photos renommées (numéro et tag) et ses notes, le tableau des photos, l’inventaire et un récapitulatif imprimable.</p>
       <div class="banner info">${icon('share')}<span><strong>Pour passer l’audit à un collègue</strong>, envoie-lui ce ZIP (AirDrop, Teams…). Il l’ouvre avec <strong>Importer</strong> sur l’accueil de son app, le complète et te le renvoie : ton app fusionne les deux versions.</span></div>
       <pre class="tree" aria-label="Contenu du ZIP">${esc(buildTree(plan, p))}</pre>
-      ${s.todo ? `<div class="banner">${icon('info')}<span>${plural(s.todo, 'photo n’a pas de tag', 'photos n’ont pas de tag')} : ${s.todo > 1 ? 'elles seront nommées' : 'elle sera nommée'} « sans-tag ».</span></div>` : ''}
+      ${exportWarnings(photos)}
       <div id="ex-state" class="ex-state" aria-live="polite"></div>
       <button type="button" class="btn ghost" data-local="copy">${icon('copy')} Copier le tableau des notes</button>`;
     const foot = `<button type="button" class="btn primary big" data-local="build">${icon('download')} Préparer le ZIP · ${fmtSize(s.bytes + 30000)}</button>`;
@@ -2884,7 +3265,12 @@ ${zonesHtml}
   /* Ajoute des photos à une zone, dans l'ordre de prise de vue (EXIF, sinon date du fichier). */
   async function ingest(files, zoneId, info = {}) {
     await closeAllSheets();
-    const zone = await S.store.get('zones', zoneId);
+    const toInbox = String(zoneId).startsWith('inbox:');
+    let zone;
+    if (toInbox) {
+      const pid = zoneId.slice(6);
+      zone = (await S.store.get('projects', pid)) ? { id: '', projectId: pid, name: 'À trier' } : null;
+    } else zone = await S.store.get('zones', zoneId);
     if (!zone) { toast('Zone introuvable'); return; }
     if (files.length > 1) busy('Lecture des dates de prise de vue…');
     const dated = [];
@@ -2913,7 +3299,12 @@ ${zonesHtml}
     if (info.skipped) notes.push(`${plural(info.skipped, 'fichier ignoré', 'fichiers ignorés')} (pas des images)`);
     if (heic) notes.push(`${plural(heic, 'photo HEIC illisible', 'photos HEIC illisibles')} par ce navigateur : convertis-les en JPEG`);
     if (failed > heic) notes.push(plural(failed - heic, 'image illisible', 'images illisibles'));
-    if (added.length === 1 && files.length === 1) openPhotoSheet(added[0].id);
+    if (toInbox) {
+      if (added.length) {
+        if (current().name === 'home') go({ name: 'project', id: zone.projectId });
+        notes.unshift(`${plural(added.length, 'photo ajoutée', 'photos ajoutées')} à « À trier »`);
+      }
+    } else if (added.length === 1 && files.length === 1) openPhotoSheet(added[0].id);
     else if (added.length) openPhotoSheet(added[0].id, { chain: { ids: added.map((x) => x.id), index: 0 } });
     if (notes.length) toast(notes.join(' · '), 6000);
     else if (!added.length) toast('Impossible de lire cette image. Essaie avec une photo JPEG.', 5000);
@@ -2929,20 +3320,29 @@ ${zonesHtml}
     if (S.sheets.length) return null;
     const r = current();
     if (r.name === 'zone') return r.id;
-    if (r.name === 'project') { const row = dropRow(e); return row ? row.dataset.zone : null; }
-    return null;
+    if (r.name === 'project') { const row = dropRow(e); return row ? row.dataset.zone : INBOX(r.id); }
+    if (r.name === 'inbox') return INBOX(r.id);
+    const card = e.target && e.target.closest ? e.target.closest('.acard[data-id]') : null;
+    return card ? INBOX(card.dataset.id) : null;
   }
   function showDrop(e) {
     if (S.sheets.length) return;
     const r = current();
     let text, full = false;
     const row = r.name === 'project' ? dropRow(e) : null;
-    $$('.zrow.drop-hover').forEach((x) => { if (x !== row) x.classList.remove('drop-hover'); });
+    const card = r.name === 'home' && e.target && e.target.closest ? e.target.closest('.acard[data-id]') : null;
+    const inboxEl = r.name === 'project' && !row ? $('.inbox') : null;
+    $$('.zrow.drop-hover, .acard.drop-hover, .inbox.drop-hover').forEach((x) => { if (x !== row && x !== card && x !== inboxEl) x.classList.remove('drop-hover'); });
     if (r.name === 'zone') { full = true; text = `Dépose les photos dans « ${($('#topbar h1') || {}).textContent || 'cette zone'} »`; }
+    else if (r.name === 'inbox') { full = true; text = 'Dépose les photos dans « À trier »'; }
     else if (r.name === 'project') {
       if (row) row.classList.add('drop-hover');
-      text = row ? `Dépose dans « ${$('.zname', row).textContent} »` : 'Dépose les photos sur une zone';
-    } else text = 'Ouvre un audit, puis dépose les photos sur une zone';
+      if (inboxEl) inboxEl.classList.add('drop-hover');
+      text = row ? `Dépose dans « ${$('.zname', row).textContent} »` : 'Dépose dans « À trier » (ou sur une zone)';
+    } else {
+      if (card) card.classList.add('drop-hover');
+      text = card ? `Dépose dans « ${(($('.aname', card) || {}).firstChild || {}).textContent || 'cet audit'} », à trier` : 'Dépose les photos sur un audit';
+    }
     if (!dropUI) { dropUI = document.createElement('div'); document.body.appendChild(dropUI); }
     dropUI.className = `dropui${full ? ' full' : ''}`;
     if (dropUI.dataset.text !== text) { dropUI.dataset.text = text; dropUI.innerHTML = `<div class="dropui-box">${icon('image')}<span>${esc(text)}</span></div>`; }
@@ -2952,7 +3352,7 @@ ${zonesHtml}
   function hideDrop() {
     clearTimeout(dropTimer);
     if (dropUI) { dropUI.remove(); dropUI = null; }
-    $$('.zrow.drop-hover').forEach((x) => x.classList.remove('drop-hover'));
+    $$('.zrow.drop-hover, .acard.drop-hover, .inbox.drop-hover').forEach((x) => x.classList.remove('drop-hover'));
   }
   /* Fichiers déposés, y compris le contenu des dossiers. Les entrées sont lues avant tout « await ». */
   function filesFromDrop(dt) {
@@ -2979,7 +3379,7 @@ ${zonesHtml}
     const zoneId = dropZoneAt(e);
     hideDrop();
     if (!zoneId) {
-      if (!S.sheets.length) toast(current().name === 'project' ? 'Dépose les photos sur une zone' : 'Ouvre un audit, puis dépose les photos sur une zone');
+      if (!S.sheets.length) toast('Dépose les photos sur un audit');
       return;
     }
     const pending = filesFromDrop(e.dataTransfer);
@@ -3015,10 +3415,31 @@ ${zonesHtml}
       const pid = current().id;
       const order = new Map(C.sortZones(await S.store.byIndex('zones', 'projectId', pid)).map((z, i) => [z.id, i]));
       const rank = (x) => (order.has(x.zoneId) ? order.get(x.zoneId) : 999);
-      const ps = (await S.store.byIndex('photos', 'projectId', pid)).filter((x) => !x.label).sort((a, b) => rank(a) - rank(b) || a.num - b.num);
+      const ps = (await S.store.byIndex('photos', 'projectId', pid)).filter((x) => !x.label && x.zoneId).sort((a, b) => rank(a) - rank(b) || a.num - b.num);
       if (ps.length) openPhotoSheet(ps[0].id, { chain: { ids: ps.map((x) => x.id), index: 0 } });
     },
     'dismiss-install': async () => { S.settings.installDismissed = true; await saveSettings(); render(true); },
+    'open-inbox': () => go({ name: 'inbox', id: current().id }),
+    'sort-one': () => openSortSheet(current().id),
+    'sel-toggle': (el, e) => {
+      const id = el.dataset.id;
+      const i = S.inboxOrder.indexOf(id);
+      if (e && e.shiftKey && S.selLast >= 0 && i >= 0) {
+        for (let k = Math.min(S.selLast, i); k <= Math.max(S.selLast, i); k++) S.sel.add(S.inboxOrder[k]);
+      } else if (S.sel.has(id)) S.sel.delete(id);
+      else S.sel.add(id);
+      S.selLast = i;
+      updSel();
+    },
+    'sel-group': (el) => {
+      const ids = S.inboxGroups[Number(el.dataset.g)] || [];
+      const all = ids.every((id) => S.sel.has(id));
+      ids.forEach((id) => (all ? S.sel.delete(id) : S.sel.add(id)));
+      updSel();
+    },
+    'sel-all': () => { S.sel = new Set(S.sel.size === S.inboxOrder.length ? [] : S.inboxOrder); updSel(); },
+    'sel-clear': () => { S.sel.clear(); updSel(); },
+    'sel-move': () => moveSelection(),
     install: async () => {
       if (!installPrompt) return;
       const p = installPrompt;
@@ -3069,6 +3490,16 @@ ${zonesHtml}
       showDrop(e);
     });
     document.addEventListener('drop', onDrop);
+    // Écran « À trier » : 1 à 9 envoie la sélection dans une zone, Ctrl+A sélectionne tout
+    document.addEventListener('keydown', (e) => {
+      if (current().name !== 'inbox' || S.sheets.length) return;
+      const t = e.target;
+      if (t && t.matches && t.matches('input, textarea, select')) return;
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); S.sel = new Set(S.inboxOrder); updSel(); return; }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (/^[1-9]$/.test(e.key) && S.sel.size) { e.preventDefault(); moveSelectionToIndex(Number(e.key) - 1); }
+      else if (e.key === 'Escape' && S.sel.size) { e.preventDefault(); S.sel.clear(); updSel(); }
+    });
     $('#in-gallery').addEventListener('change', (e) => onFileInput(e.target));
   }
 

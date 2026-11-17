@@ -1,5 +1,5 @@
 /* Carnet d'audit : service worker. L'app fonctionne hors ligne une fois ouverte une première fois. */
-const VERSION = 'c9d3ac4c5d';
+const VERSION = '65ad0aa66d';
 const CACHE = 'carnet-audit-' + VERSION;
 const ASSETS = [
   "./",
