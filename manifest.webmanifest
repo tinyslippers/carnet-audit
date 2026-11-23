@@ -1,6 +1,6 @@
 {
-  "name": "Carnet d'audit IT",
-  "short_name": "Carnet d'audit",
+  "name": "Label · audit IT",
+  "short_name": "Label",
   "description": "Photos et notes d'audit IT d'hôtels, rangées par audit et par zone, avec export ZIP pour le rapport.",
   "lang": "fr",
   "id": "./",

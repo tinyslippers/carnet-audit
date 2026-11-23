@@ -7,9 +7,9 @@
 <meta name="theme-color" content="#0D1219" media="(prefers-color-scheme: dark)">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Carnet d'audit">
+<meta name="apple-mobile-web-app-title" content="Label">
 <meta name="description" content="Photos et notes d'audit IT d'hôtels, rangées par audit et par zone, avec export ZIP pour le rapport.">
-<title>Carnet d'audit IT</title>
+<title>Label · audit IT</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -31,9 +31,9 @@
   --ink: #131B2B;
   --muted: #586378;
   --line: #D6DCE5;
-  --accent: #1F49C7;
+  --accent: #007A4C;
   --accent-ink: #FFFFFF;
-  --accent-soft: #E2E8FA;
+  --accent-soft: #DDF1E8;
   --ok: #1E7F4E;
   --ok-soft: #E1F3E9;
   --warn: #9C5B0B;
@@ -58,9 +58,9 @@
     --ink: #E6EBF2;
     --muted: #96A2B5;
     --line: #283345;
-    --accent: #84A0FF;
-    --accent-ink: #0A1022;
-    --accent-soft: #1C2747;
+    --accent: #5ED3A0;
+    --accent-ink: #04210F;
+    --accent-soft: #12291F;
     --ok: #52C890;
     --ok-soft: #12291F;
     --warn: #E5AD55;
@@ -78,9 +78,9 @@
   --ink: #E6EBF2;
   --muted: #96A2B5;
   --line: #283345;
-  --accent: #84A0FF;
-  --accent-ink: #0A1022;
-  --accent-soft: #1C2747;
+  --accent: #5ED3A0;
+  --accent-ink: #04210F;
+  --accent-soft: #12291F;
   --ok: #52C890;
   --ok-soft: #12291F;
   --warn: #E5AD55;
@@ -135,8 +135,9 @@ button, label[role="button"] { cursor: pointer; touch-action: manipulation; }
 }
 .tb-title p { margin: 1px 0 0; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .brand {
-  display: grid; place-items: center; width: 40px; height: 40px; margin-left: 4px;
-  border-radius: 11px; background: var(--accent); color: var(--accent-ink);
+  display: block; flex: none; width: 40px; height: 40px; margin-left: 4px;
+  border-radius: 11px; background: url(data:image/png;base64,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) center / cover no-repeat;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .06);
 }
 .icon-btn {
   display: inline-grid; place-items: center; flex: none;
@@ -699,19 +700,19 @@ li:first-child > .tag-opt { border-top: 0; }
 <body>
 <div id="app">
   <header class="topbar" id="topbar">
-    <span class="brand" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg></span>
-    <div class="tb-title"><h1>Carnet d'audit</h1><p>Photos et notes d'audit IT</p></div>
+    <span class="brand" aria-hidden="true"></span>
+    <div class="tb-title"><h1>Label</h1><p>Photos et notes d'audit IT</p></div>
   </header>
-  <main id="view" class="view" tabindex="-1"><p class="loading">Ouverture du carnet…</p></main>
+  <main id="view" class="view" tabindex="-1"><p class="loading">Ouverture de Label…</p></main>
   <footer class="actionbar" id="actionbar"></footer>
 </div>
 <input type="file" id="in-camera" class="vh" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
 <input type="file" id="in-gallery" class="vh" accept="image/*" multiple tabindex="-1" aria-hidden="true">
 <input type="file" id="in-import" class="vh" accept=".zip,application/zip,application/x-zip-compressed" tabindex="-1" aria-hidden="true">
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-<noscript><p style="padding:16px">Active JavaScript pour utiliser le carnet d'audit.</p></noscript>
+<noscript><p style="padding:16px">Active JavaScript pour utiliser Label.</p></noscript>
 <script>
-/* Carnet d'audit : fonctions pures (tags, nommage, CSV, récapitulatif, ZIP). Testées sous Node. */
+/* Label : fonctions pures (tags, nommage, CSV, récapitulatif, ZIP). Testées sous Node. */
 (function (root) {
   'use strict';
 
@@ -1180,7 +1181,7 @@ li:first-child > .tag-opt { border-top: 0; }
   const dupExtra = (groups) => groups.reduce((t, g) => t + g.photos.length - 1, 0);
 
   const RECAP_CSS = `
-:root{--ink:#131B2B;--muted:#586378;--line:#D6DCE5;--accent:#1F49C7;--warn:#9C5B0B}
+:root{--ink:#131B2B;--muted:#586378;--line:#D6DCE5;--accent:#007A4C;--warn:#9C5B0B}
 *{box-sizing:border-box}
 body{margin:0;background:#fff;color:var(--ink);font:15px/1.5 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 main{max-width:1040px;margin:0 auto;padding:32px 24px 48px}
@@ -1252,13 +1253,13 @@ ${p.note ? `<p>${escNl(p.note)}</p>` : ''}
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Audit ${esc(project.hotel)} · ${esc(fmtIsoDate(project.date))}</title><style>${RECAP_CSS}</style></head>
 <body><main>
-<header><p class="eyebrow">Carnet d'audit IT · récapitulatif photos</p><h1>${esc(project.hotel)}</h1>${meta ? `<p class="meta">${meta}</p>` : ''}
+<header><p class="eyebrow">Label · récapitulatif photos d'audit IT</p><h1>${esc(project.hotel)}</h1>${meta ? `<p class="meta">${meta}</p>` : ''}
 <p class="tip">Astuce : imprime cette page en PDF pour l'annexe photo du rapport.</p></header>
 <div class="stats">${stat(items.length, 'photos')}${stat(plan.zones.length, 'zones')}${stat(inv.length, 'tags différents')}${untagged ? stat(untagged, 'sans tag', 'warn') : ''}</div>
 ${project.notes ? `<section><h2>Notes générales</h2><p class="notes">${escNl(project.notes)}</p></section>` : ''}
 ${invHtml}
 ${zonesHtml}
-<footer>Généré le ${esc(fmtDateTime(generatedAt))} avec Carnet d'audit.</footer>
+<footer>Généré le ${esc(fmtDateTime(generatedAt))} avec Label.</footer>
 </main></body></html>
 `;
   }
@@ -1417,7 +1418,7 @@ ${zonesHtml}
 
 </script>
 <script>
-/* Carnet d'audit : application (stockage local IndexedDB, capture, annotation, export). */
+/* Label : application (stockage local IndexedDB, capture, annotation, export). */
 (function () {
   'use strict';
 
@@ -1427,7 +1428,7 @@ ${zonesHtml}
   const esc = C.esc;
   const pad = C.pad;
 
-  const VERSION = '0.6';
+  const VERSION = '0.7';
   const QUALITY = {
     opt: { max: 1600, q: 0.82, label: 'Optimisée', hint: '1600 px, environ 0,3 Mo par photo' },
     std: { max: 2560, q: 0.85, label: 'Standard', hint: '2560 px, environ 0,7 Mo par photo' },
@@ -2081,7 +2082,7 @@ ${zonesHtml}
     });
     window.addEventListener('appinstalled', () => {
       installPrompt = null;
-      toast('Carnet installé sur l’écran d’accueil');
+      toast('Label est installée sur l’écran d’accueil');
       if (current().name === 'home' && !S.sheets.length) render(true);
     });
   }
@@ -2093,7 +2094,7 @@ ${zonesHtml}
     else if (isIOS()) how = `<p>Dans Safari, touche ${icon('share')} <strong>Partager</strong>, puis <strong>Sur l’écran d’accueil</strong>.</p>`;
     else how = '<p>Ouvre le menu du navigateur, puis <strong>Installer l’application</strong> ou <strong>Ajouter à l’écran d’accueil</strong>.</p>';
     return `<section class="install" aria-label="Installer l’app">
-      <div><strong>Installe le carnet sur ton téléphone</strong><p>Il s’ouvrira comme une app, même sans réseau, et tes photos y seront mieux protégées.</p></div>
+      <div><strong>Installe Label sur ton téléphone</strong><p>Il s’ouvrira comme une app, même sans réseau, et tes photos y seront mieux protégées.</p></div>
       ${how}<button type="button" class="btn link" data-act="dismiss-install">Plus tard</button></section>`;
   }
 
@@ -2151,7 +2152,7 @@ ${zonesHtml}
   function topbar({ back: hasBack = false, title, sub = '', right = '' }) {
     const left = hasBack
       ? `<button type="button" class="icon-btn" data-act="back" aria-label="Retour">${icon('back')}</button>`
-      : `<span class="brand" aria-hidden="true">${icon('camera')}</span>`;
+      : '<span class="brand" aria-hidden="true"></span>';
     return `${left}<div class="tb-title"><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>${right}`;
   }
 
@@ -2168,7 +2169,7 @@ ${zonesHtml}
       else if (r.name === 'inbox') out = await viewInbox(r.id);
     } catch (e) {
       console.error(e);
-      out = { top: topbar({ title: 'Carnet d’audit' }), html: `<div class="banner bad">${icon('info')}<span>Affichage impossible : ${esc(errMsg(e))}</span></div>`, actions: '' };
+      out = { top: topbar({ title: 'Label' }), html: `<div class="banner bad">${icon('info')}<span>Affichage impossible : ${esc(errMsg(e))}</span></div>`, actions: '' };
     }
     if (token !== S.renderToken) return;
     if (!out) { S.nav = [{ name: 'home' }]; return render(); }
@@ -2191,7 +2192,7 @@ ${zonesHtml}
   async function viewHome() {
     const [projects, photos, zones] = await Promise.all([S.store.all('projects'), S.store.all('photos'), S.store.all('zones')]);
     projects.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0));
-    const top = topbar({ title: 'Carnet d’audit', sub: 'Photos et notes d’audit IT', right: `<button type="button" class="icon-btn" data-act="settings" aria-label="Réglages">${icon('sliders')}</button>` });
+    const top = topbar({ title: 'Label', sub: 'Photos et notes d’audit IT', right: `<button type="button" class="icon-btn" data-act="settings" aria-label="Réglages">${icon('sliders')}</button>` });
     let html = storageBanner() + installCard();
     if (!S.settings.hintDismissed) {
       html += `<section class="hint" aria-label="Mode d’emploi"><ol>
@@ -3411,7 +3412,7 @@ ${zonesHtml}
         <button type="button" class="btn" data-local="tags">${icon('tag')} Gérer les tags</button>
       </div>
       <button type="button" class="btn" data-local="seed">Recréer l’audit d’exemple</button>
-      <p class="small">Carnet d’audit · version ${VERSION} · les photos restent sur cet appareil</p>`;
+      <p class="small">Label · version ${VERSION} · les photos restent sur cet appareil</p>`;
     const sheet = openSheet({ title: 'Réglages', body, foot: '<button type="button" class="btn primary" data-sheet-dismiss>Fermer</button>' });
     const el = sheet.el;
     $('#st-auditor', el).addEventListener('change', (e) => { S.settings.auditor = e.target.value.trim(); saveSettings(); });
